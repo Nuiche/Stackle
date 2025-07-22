@@ -21,7 +21,6 @@ export type Row = {
   createdAt?: unknown
 }
 
-
 const mapDocs = (snap: QuerySnapshot<DocumentData>) =>
   snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Row, 'id'>) }))
 
@@ -55,4 +54,12 @@ export async function getAllTimeLeaderboard(top = 20): Promise<Row[]> {
     limit(top)
   )
   return mapDocs(await getDocs(q))
+}
+
+/* Wrappers so your new page code compiles */
+export async function getEndlessLatest(top = 20) {
+  return getEndlessLeaderboard(top)
+}
+export async function getAllTime(top = 20) {
+  return getAllTimeLeaderboard(top)
 }
