@@ -4,14 +4,14 @@ export const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? ''
 type PageViewParams = { page_path: string }
 type EventParams = Record<string, string | number | boolean | undefined>
 
-type Gtag =
+type GtagArgs =
   | ['js', Date]
   | ['config', string, PageViewParams?]
   | ['event', string, EventParams?]
 
 declare global {
   interface Window {
-    gtag: (...args: Gtag) => void
+    gtag: (...args: GtagArgs) => void
   }
 }
 
