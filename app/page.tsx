@@ -21,25 +21,27 @@ type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
 
 const MILESTONES = [5, 10, 20, 30, 50]
+const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
 
 export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
   const [mode, setMode] = useState<GameMode>('endless')
   const [name, setName] = useState('')
-  const [dictionary, setDictionary] = useState<string[]>([]) // used for word validation & seed pick
+  const [dictionary, setDictionary] = useState<string[]>([]) // real-word list
   const dictSet = useRef<Set<string>>(new Set())
 
-  const [stack, setStack] = useState<string[]>([]) // [currentSeed, ...previousSeeds]
+  const [stack, setStack] = useState<string[]>([]) // [currentSeed, ...previous]
   const [input, setInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [sendSpin, setSendSpin] = useState(false)
+  const [loadingSeed, setLoadingSeed] = useState(false)
 
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  /* ---------- init ---------- */
+  /* --------- init --------- */
   useEffect(() => {
     uidRef.current = getUserId()
     const stored = typeof window !== 'undefined'
@@ -48,7 +50,7 @@ export default function Page() {
     if (stored) setName(stored)
   }, [])
 
-  // Load dictionary (3–8 letter list)
+  // Load dictionary once
   useEffect(() => {
     fetch('/api/dictionary')
       .then((r) => r.json())
@@ -56,9 +58,13 @@ export default function Page() {
         setDictionary(words)
         dictSet.current = new Set(words)
       })
+      .catch(() => {
+        // still allow play with fallback seeds
+        dictSet.current = new Set(FALLBACK_SEEDS)
+      })
   }, [])
 
-  // Pull top daily scorer (for home screen)
+  // Pull top daily scorer (home screen)
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
     getDailyLeaderboard(today, 1)
@@ -68,25 +74,34 @@ export default function Page() {
       .catch(() => {})
   }, [])
 
-  // Start / reset game when entering game screen or switching mode
+  // Start game when entering game screen
   useEffect(() => {
-    if (screen !== 'game' || !dictionary.length) return
-    ;(async () => {
+    if (screen !== 'game') return
+    startGame()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, mode, dictionary.length])
+
+  async function startGame() {
+    setLoadingSeed(true)
+    try {
       if (mode === 'daily') {
         const d = await (await fetch('/api/seed')).json()
         setStack([d.seed])
       } else {
-        const rand = dictionary[Math.floor(Math.random() * dictionary.length)]
+        const list = dictionary.length ? dictionary : FALLBACK_SEEDS
+        const rand = list[Math.floor(Math.random() * list.length)]
         setStack([rand])
       }
       setInput('')
-      inputRef.current?.focus()
-    })()
-  }, [screen, mode, dictionary])
+      setTimeout(() => inputRef.current?.focus(), 0)
+    } finally {
+      setLoadingSeed(false)
+    }
+  }
 
-  /* ---------- logic ---------- */
+  /* --------- validation --------- */
 
-  // one edit distance (insert/delete/replace exactly 1 char)
+  // exactly ONE edit (insert/delete/replace)
   function isOneEditAway(a: string, b: string): boolean {
     a = a.toUpperCase()
     b = b.toUpperCase()
@@ -103,8 +118,7 @@ export default function Page() {
       } else {
         edits++
         if (edits > 1) return false
-        if (lenA === lenB) { i++; j++ }  // replace
-        else { j++ }                     // insert/delete
+        if (lenA === lenB) { i++; j++ } else { j++ }
       }
     }
     if (j < lenB || i < lenA) edits++
@@ -114,8 +128,6 @@ export default function Page() {
   const handleSubmit = () => {
     const w = input.trim().toUpperCase()
     if (!w) return
-
-    // Must be a real word
     if (!dictSet.current.has(w)) {
       alert('Not a valid English word.')
       return
@@ -127,19 +139,17 @@ export default function Page() {
       setStack(newStack)
       setInput('')
 
-      const wordsStacked = newStack.length - 1
+      const wordsStacked = Math.max(newStack.length - 1, 0)
       gaEvent('word_submit', { word: w, stackSize: wordsStacked, mode })
 
       if (navigator.vibrate) navigator.vibrate(15)
-      if (wordsStacked > 0 && wordsStacked % 5 === 0) {
-        burst()
-      }
+      if (wordsStacked > 0 && wordsStacked % 5 === 0) burst()
 
       setSendSpin(true)
       setTimeout(() => setSendSpin(false), 400)
     } else {
       gaEvent('invalid_move', { attempted: w, from: seed, mode })
-      alert('Invalid move! Must be exactly one edit away (insert/delete/replace).')
+      alert('Invalid move! Must be exactly one edit away.')
     }
     inputRef.current?.focus()
   }
@@ -170,7 +180,7 @@ export default function Page() {
   }
 
   const handleShare = () => {
-    const score = stack.length - 1
+    const score = Math.max(stack.length - 1, 0)
     const shareText = `I stacked ${score} words in Stackle Word!`
     gaEvent('share_click', { score, mode })
 
@@ -189,8 +199,8 @@ export default function Page() {
   const handleSubmitScore = async () => {
     setIsSaving(true)
     try {
-      await saveScore({ mode, score: stack.length - 1, name })
-      gaEvent('score_submit', { score: stack.length - 1, mode })
+      await saveScore({ mode, score: Math.max(stack.length - 1, 0), name })
+      gaEvent('score_submit', { score: Math.max(stack.length - 1, 0), mode })
       alert('Score submitted!')
     } catch (e) {
       console.error(e)
@@ -200,7 +210,7 @@ export default function Page() {
     }
   }
 
-  /* ---------- UI ---------- */
+  /* --------- UI --------- */
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
@@ -294,11 +304,12 @@ export default function Page() {
                     value={input}
                     onChange={onChange}
                     onKeyDown={onKeyDown}
-                    className="w-full p-3 pr-14 border-2 border-gray-500 rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-blue-500"
-                    placeholder="ENTER WORD"
+                    disabled={loadingSeed}
+                    className="w-full p-3 pr-14 border-2 border-gray-500 rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                    placeholder={loadingSeed ? 'LOADING…' : 'ENTER WORD'}
                   />
                   <span className="absolute inset-y-0 right-3 flex items-center text-gray-500 font-semibold">
-                    {stack.length - 1}
+                    {Math.max(stack.length - 1, 0)}
                   </span>
                 </div>
                 <motion.button
@@ -306,7 +317,8 @@ export default function Page() {
                   animate={sendSpin ? { rotate: 360 } : { rotate: 0 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 15 }}
                   onClick={handleSubmit}
-                  className="px-5 py-3 rounded-lg bg-blue-600 text-white text-xl flex items-center justify-center"
+                  disabled={loadingSeed}
+                  className="px-5 py-3 rounded-lg bg-blue-600 text-white text-xl flex items-center justify-center disabled:opacity-50"
                   aria-label="Submit word"
                 >
                   <FaPaperPlane />
@@ -314,7 +326,7 @@ export default function Page() {
               </div>
 
               {/* Seed word */}
-              {stack[0] && (
+              {stack[0] && !loadingSeed && (
                 <div className="mb-2">
                   <div className="w-full text-center py-3 rounded-lg bg-gray-700 text-white text-2xl font-semibold tracking-widest">
                     {stack[0]}
