@@ -9,13 +9,13 @@ import React, {
   ChangeEvent,
 } from 'react'
 import Link from 'next/link'
-  // @ts-ignore
 import { motion, AnimatePresence } from 'framer-motion'
 import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
 import { event as gaEvent } from '@/lib/gtag'
 import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
 import { getUserId } from '@/lib/user'
+import { getDailyLeaderboard } from '@/lib/getLeaderboard'
 
 type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
@@ -26,15 +26,20 @@ export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
   const [mode, setMode] = useState<GameMode>('endless')
   const [name, setName] = useState('')
-  const [dictionary, setDictionary] = useState<string[]>([]) // only for picking seeds if you want
-  const [stack, setStack] = useState<string[]>([])
+  const [dictionary, setDictionary] = useState<string[]>([]) // used for word validation & seed pick
+  const dictSet = useRef<Set<string>>(new Set())
+
+  const [stack, setStack] = useState<string[]>([]) // [currentSeed, ...previousSeeds]
   const [input, setInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [sendSpin, setSendSpin] = useState(false)
 
+  const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
+
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
+  /* ---------- init ---------- */
   useEffect(() => {
     uidRef.current = getUserId()
     const stored = typeof window !== 'undefined'
@@ -43,18 +48,29 @@ export default function Page() {
     if (stored) setName(stored)
   }, [])
 
-  // Load list (you can later trim to just seeds)
+  // Load dictionary (3–8 letter list)
   useEffect(() => {
     fetch('/api/dictionary')
       .then((r) => r.json())
-      .then((words: string[]) => setDictionary(words))
+      .then((words: string[]) => {
+        setDictionary(words)
+        dictSet.current = new Set(words)
+      })
   }, [])
 
-  // Start game on screen change
+  // Pull top daily scorer (for home screen)
   useEffect(() => {
-    if (screen !== 'game') return
-    if (!dictionary.length) return
+    const today = new Date().toISOString().slice(0, 10)
+    getDailyLeaderboard(today, 1)
+      .then((rows) => {
+        if (rows.length) setTopDaily({ name: rows[0].name, score: rows[0].score })
+      })
+      .catch(() => {})
+  }, [])
 
+  // Start / reset game when entering game screen or switching mode
+  useEffect(() => {
+    if (screen !== 'game' || !dictionary.length) return
     ;(async () => {
       if (mode === 'daily') {
         const d = await (await fetch('/api/seed')).json()
@@ -68,7 +84,9 @@ export default function Page() {
     })()
   }, [screen, mode, dictionary])
 
-  // ----- logic -----
+  /* ---------- logic ---------- */
+
+  // one edit distance (insert/delete/replace exactly 1 char)
   function isOneEditAway(a: string, b: string): boolean {
     a = a.toUpperCase()
     b = b.toUpperCase()
@@ -85,8 +103,8 @@ export default function Page() {
       } else {
         edits++
         if (edits > 1) return false
-        if (lenA === lenB) { i++; j++ } // replace
-        else { j++ } // insert into a / delete from b
+        if (lenA === lenB) { i++; j++ }  // replace
+        else { j++ }                     // insert/delete
       }
     }
     if (j < lenB || i < lenA) edits++
@@ -96,21 +114,32 @@ export default function Page() {
   const handleSubmit = () => {
     const w = input.trim().toUpperCase()
     if (!w) return
+
+    // Must be a real word
+    if (!dictSet.current.has(w)) {
+      alert('Not a valid English word.')
+      return
+    }
+
     const seed = stack[0]
     if (isOneEditAway(seed, w)) {
       const newStack = [w, ...stack]
       setStack(newStack)
       setInput('')
-      gaEvent('word_submit', { word: w, stackSize: newStack.length, mode })
+
+      const wordsStacked = newStack.length - 1
+      gaEvent('word_submit', { word: w, stackSize: wordsStacked, mode })
 
       if (navigator.vibrate) navigator.vibrate(15)
-      if (MILESTONES.includes(newStack.length)) burst()
+      if (wordsStacked > 0 && wordsStacked % 5 === 0) {
+        burst()
+      }
 
       setSendSpin(true)
       setTimeout(() => setSendSpin(false), 400)
     } else {
       gaEvent('invalid_move', { attempted: w, from: seed, mode })
-      alert('Invalid move! Must be exactly one letter different (insert/delete/replace).')
+      alert('Invalid move! Must be exactly one edit away (insert/delete/replace).')
     }
     inputRef.current?.focus()
   }
@@ -171,7 +200,7 @@ export default function Page() {
     }
   }
 
-  // ----- UI -----
+  /* ---------- UI ---------- */
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
@@ -195,12 +224,19 @@ export default function Page() {
               >
                 Endless
               </button>
-              <button
-                onClick={() => goMode('daily')}
-                className="w-full py-3 rounded-lg bg-green-600 text-white text-lg"
-              >
-                Daily
-              </button>
+              <div>
+                <button
+                  onClick={() => goMode('daily')}
+                  className="w-full py-3 rounded-lg bg-green-600 text-white text-lg"
+                >
+                  Daily Challenge
+                </button>
+                {topDaily && (
+                  <p className="text-xs text-gray-200 mt-2">
+                    Top today: <span className="font-semibold">{topDaily.name ?? 'Anon'}</span> – {topDaily.score}
+                  </p>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
@@ -308,7 +344,7 @@ export default function Page() {
 
             {/* Bottom action bar */}
             <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3">
-              <div className="w-full max-w-md bg-white/90 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
+              <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
                 <button
                   onClick={handleShare}
                   className="flex-1 py-2 bg-indigo-500 text-white rounded-lg flex items-center justify-center space-x-1 text-sm"

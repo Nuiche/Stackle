@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import { NextResponse } from 'next/server'
 
 export function GET() {
-  const filePath = path.join(process.cwd(), 'public', 'words_5.json')
+  const filePath = path.join(process.cwd(), 'public', 'words_all.json')
   const json = fs.readFileSync(filePath, 'utf8')
-  const words = JSON.parse(json).map(w => w.toUpperCase())
+  const words = JSON.parse(json)
   return NextResponse.json(words)
 }
