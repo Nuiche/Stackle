@@ -1,3 +1,4 @@
+// lib/getLeaderboard.ts
 import { db } from '@/lib/firebase'
 import {
   collection,
@@ -6,20 +7,23 @@ import {
   orderBy,
   limit,
   getDocs,
+  QuerySnapshot,
+  DocumentData,
 } from 'firebase/firestore'
 
-type Row = {
+export type Row = {
   id: string
   uid: string
   score: number
   date: string
   mode: string
+  createdAt?: unknown
 }
 
-const mapDocs = (snap: any) =>
-  snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as Omit<Row, 'id'>) }))
+const mapDocs = (snap: QuerySnapshot<DocumentData>) =>
+  snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Row, 'id'>) }))
 
-export async function getDailyLeaderboard(date: string, top = 10): Promise<Row[]> {
+export async function getDailyLeaderboard(date: string, top = 20): Promise<Row[]> {
   const q = query(
     collection(db, 'scores'),
     where('date', '==', date),
@@ -28,28 +32,25 @@ export async function getDailyLeaderboard(date: string, top = 10): Promise<Row[]
     orderBy('createdAt', 'asc'),
     limit(top)
   )
-  const snap = await getDocs(q)
-  return mapDocs(snap)
+  return mapDocs(await getDocs(q))
 }
 
-export async function getEndlessLeaderboard(top = 10): Promise<Row[]> {
+export async function getEndlessLeaderboard(top = 20): Promise<Row[]> {
   const q = query(
     collection(db, 'scores'),
     where('mode', '==', 'endless'),
     orderBy('createdAt', 'desc'),
     limit(top)
   )
-  const snap = await getDocs(q)
-  return mapDocs(snap)
+  return mapDocs(await getDocs(q))
 }
 
-export async function getAllTimeLeaderboard(top = 10): Promise<Row[]> {
+export async function getAllTimeLeaderboard(top = 20): Promise<Row[]> {
   const q = query(
     collection(db, 'scores'),
     orderBy('score', 'desc'),
     orderBy('createdAt', 'asc'),
     limit(top)
   )
-  const snap = await getDocs(q)
-  return mapDocs(snap)
+  return mapDocs(await getDocs(q))
 }
