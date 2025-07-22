@@ -9,12 +9,9 @@ import React, {
   ChangeEvent,
 } from 'react'
 import Link from 'next/link'
+  // @ts-ignore
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  FaShareAlt,
-  FaTrophy,
-  FaPaperPlane,
-} from 'react-icons/fa'
+import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
 import { event as gaEvent } from '@/lib/gtag'
 import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
@@ -29,7 +26,7 @@ export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
   const [mode, setMode] = useState<GameMode>('endless')
   const [name, setName] = useState('')
-  const [dictionary, setDictionary] = useState<string[]>([])
+  const [dictionary, setDictionary] = useState<string[]>([]) // only for picking seeds if you want
   const [stack, setStack] = useState<string[]>([])
   const [input, setInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -38,7 +35,6 @@ export default function Page() {
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  // grab uid & name from localStorage
   useEffect(() => {
     uidRef.current = getUserId()
     const stored = typeof window !== 'undefined'
@@ -47,16 +43,18 @@ export default function Page() {
     if (stored) setName(stored)
   }, [])
 
-  // Load dictionary once
+  // Load list (you can later trim to just seeds)
   useEffect(() => {
     fetch('/api/dictionary')
       .then((r) => r.json())
       .then((words: string[]) => setDictionary(words))
   }, [])
 
-  // Start game when we reach "game" screen
+  // Start game on screen change
   useEffect(() => {
-    if (screen !== 'game' || !dictionary.length) return
+    if (screen !== 'game') return
+    if (!dictionary.length) return
+
     ;(async () => {
       if (mode === 'daily') {
         const d = await (await fetch('/api/seed')).json()
@@ -70,23 +68,36 @@ export default function Page() {
     })()
   }, [screen, mode, dictionary])
 
-  // ----- helpers -----
-  const isValidMove = (oldW: string, newW: string) => {
-    if (!dictionary.includes(newW)) return false
-    if (oldW.length !== newW.length) return false
-    let diff = 0
-    for (let i = 0; i < oldW.length; i++) {
-      if (oldW[i] !== newW[i]) diff++
-      if (diff > 1) return false
+  // ----- logic -----
+  function isOneEditAway(a: string, b: string): boolean {
+    a = a.toUpperCase()
+    b = b.toUpperCase()
+    if (a === b) return false
+    const lenA = a.length
+    const lenB = b.length
+    if (Math.abs(lenA - lenB) > 1) return false
+    if (lenA > lenB) return isOneEditAway(b, a)
+
+    let i = 0, j = 0, edits = 0
+    while (i < lenA && j < lenB) {
+      if (a[i] === b[j]) {
+        i++; j++
+      } else {
+        edits++
+        if (edits > 1) return false
+        if (lenA === lenB) { i++; j++ } // replace
+        else { j++ } // insert into a / delete from b
+      }
     }
-    return diff === 1
+    if (j < lenB || i < lenA) edits++
+    return edits === 1
   }
 
   const handleSubmit = () => {
     const w = input.trim().toUpperCase()
     if (!w) return
     const seed = stack[0]
-    if (isValidMove(seed, w)) {
+    if (isOneEditAway(seed, w)) {
       const newStack = [w, ...stack]
       setStack(newStack)
       setInput('')
@@ -99,7 +110,7 @@ export default function Page() {
       setTimeout(() => setSendSpin(false), 400)
     } else {
       gaEvent('invalid_move', { attempted: w, from: seed, mode })
-      alert('Invalid move!')
+      alert('Invalid move! Must be exactly one letter different (insert/delete/replace).')
     }
     inputRef.current?.focus()
   }
@@ -115,12 +126,8 @@ export default function Page() {
   const goMode = (m: GameMode) => {
     setMode(m)
     gaEvent('mode_select', { mode: m })
-    // if we already have a name, skip straight to game
-    if (name.trim().length >= 2) {
-      setScreen('game')
-    } else {
-      setScreen('nickname')
-    }
+    if (name.trim().length >= 2) setScreen('game')
+    else setScreen('nickname')
   }
 
   const saveNameAndStart = () => {
@@ -134,22 +141,18 @@ export default function Page() {
   }
 
   const handleShare = () => {
-    const score = stack.length
+    const score = stack.length - 1
     const shareText = `I stacked ${score} words in Stackle Word!`
     gaEvent('share_click', { score, mode })
 
     if (navigator.share) {
-      navigator
-        .share({
-          title: 'My Stackle Word Score',
-          text: shareText,
-          url: window.location.href,
-        })
-        .catch(() => {})
+      navigator.share({
+        title: 'My Stackle Word Score',
+        text: shareText,
+        url: window.location.href,
+      }).catch(() => {})
     } else {
-      navigator.clipboard.writeText(
-        `${shareText} Play at ${window.location.href}`
-      )
+      navigator.clipboard.writeText(`${shareText} Play at ${window.location.href}`)
       alert('Link copied to clipboard!')
     }
   }
@@ -157,8 +160,8 @@ export default function Page() {
   const handleSubmitScore = async () => {
     setIsSaving(true)
     try {
-      await saveScore({ mode, score: stack.length, name })
-      gaEvent('score_submit', { score: stack.length, mode })
+      await saveScore({ mode, score: stack.length - 1, name })
+      gaEvent('score_submit', { score: stack.length - 1, mode })
       alert('Score submitted!')
     } catch (e) {
       console.error(e)
@@ -168,7 +171,7 @@ export default function Page() {
     }
   }
 
-  // ----- screens -----
+  // ----- UI -----
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
@@ -258,9 +261,8 @@ export default function Page() {
                     className="w-full p-3 pr-14 border-2 border-gray-500 rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-blue-500"
                     placeholder="ENTER WORD"
                   />
-                  {/* score badge */}
                   <span className="absolute inset-y-0 right-3 flex items-center text-gray-500 font-semibold">
-                    {stack.length-1}
+                    {stack.length - 1}
                   </span>
                 </div>
                 <motion.button
@@ -275,7 +277,7 @@ export default function Page() {
                 </motion.button>
               </div>
 
-              {/* Seed word block */}
+              {/* Seed word */}
               {stack[0] && (
                 <div className="mb-2">
                   <div className="w-full text-center py-3 rounded-lg bg-gray-700 text-white text-2xl font-semibold tracking-widest">
@@ -285,7 +287,7 @@ export default function Page() {
               )}
             </div>
 
-            {/* Stack list (old seed words) */}
+            {/* Past words */}
             <div className="mt-2 space-y-2 pb-28">
               <AnimatePresence initial={false}>
                 {stack.slice(1).map((word, i) => (
@@ -305,8 +307,8 @@ export default function Page() {
             </div>
 
             {/* Bottom action bar */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white/85 backdrop-blur py-3">
-              <div className="max-w-md mx-auto px-4 flex gap-2">
+            <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3">
+              <div className="w-full max-w-md bg-white/90 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
                 <button
                   onClick={handleShare}
                   className="flex-1 py-2 bg-indigo-500 text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
@@ -318,12 +320,11 @@ export default function Page() {
                   disabled={isSaving}
                   className="flex-1 py-2 bg-emerald-600 text-white rounded-lg flex items-center justify-center space-x-1 text-sm disabled:opacity-60"
                 >
-                  <FaTrophy />{' '}
-                  <span>{isSaving ? 'Saving…' : 'Submit'}</span>
+                  <FaTrophy /> <span>{isSaving ? 'Saving…' : 'Submit'}</span>
                 </button>
                 <Link
                   href="/leaderboard"
-                  className="flex-1 py-2 bg-gray-600 text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
+                  className="flex-1 py-2 bg-gray-700 text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
                 >
                   <span>Board</span>
                 </Link>
