@@ -246,7 +246,7 @@ export default function Page() {
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
             {/* Sticky top: input + score */}
-            <div className="sticky top-0 z-10 bg-gradient-to-b from-white/90 to-gray-200/60 backdrop-blur pb-3">
+            <div className="sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-3">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
                   <input
@@ -260,7 +260,7 @@ export default function Page() {
                   />
                   {/* score badge */}
                   <span className="absolute inset-y-0 right-3 flex items-center text-gray-500 font-semibold">
-                    {stack.length}
+                    {stack.length-1}
                   </span>
                 </div>
                 <motion.button
