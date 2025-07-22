@@ -1,8 +1,25 @@
-// lib/getLeaderboard.ts
-import { db } from './firebase'
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+} from 'firebase/firestore'
 
-export async function getDailyLeaderboard(date: string, top = 10) {
+type Row = {
+  id: string
+  uid: string
+  score: number
+  date: string
+  mode: string
+}
+
+const mapDocs = (snap: any) =>
+  snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as Omit<Row, 'id'>) }))
+
+export async function getDailyLeaderboard(date: string, top = 10): Promise<Row[]> {
   const q = query(
     collection(db, 'scores'),
     where('date', '==', date),
@@ -12,16 +29,21 @@ export async function getDailyLeaderboard(date: string, top = 10) {
     limit(top)
   )
   const snap = await getDocs(q)
-  return snap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<{
-    id: string
-    uid: string
-    score: number
-    date: string
-    mode: string
-  }>
+  return mapDocs(snap)
 }
 
-export async function getAllTimeLeaderboard(top = 10) {
+export async function getEndlessLeaderboard(top = 10): Promise<Row[]> {
+  const q = query(
+    collection(db, 'scores'),
+    where('mode', '==', 'endless'),
+    orderBy('createdAt', 'desc'),
+    limit(top)
+  )
+  const snap = await getDocs(q)
+  return mapDocs(snap)
+}
+
+export async function getAllTimeLeaderboard(top = 10): Promise<Row[]> {
   const q = query(
     collection(db, 'scores'),
     orderBy('score', 'desc'),
@@ -29,11 +51,5 @@ export async function getAllTimeLeaderboard(top = 10) {
     limit(top)
   )
   const snap = await getDocs(q)
-  return snap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<{
-    id: string
-    uid: string
-    score: number
-    date: string
-    mode: string
-  }>
+  return mapDocs(snap)
 }
