@@ -27,10 +27,10 @@ export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
   const [mode, setMode] = useState<GameMode>('endless')
   const [name, setName] = useState('')
-  const [dictionary, setDictionary] = useState<string[]>([]) // real-word list
+  const [dictionary, setDictionary] = useState<string[]>([])
   const dictSet = useRef<Set<string>>(new Set())
 
-  const [stack, setStack] = useState<string[]>([]) // [currentSeed, ...previous]
+  const [stack, setStack] = useState<string[]>([])
   const [input, setInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [sendSpin, setSendSpin] = useState(false)
@@ -41,7 +41,6 @@ export default function Page() {
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  /* --------- init --------- */
   useEffect(() => {
     uidRef.current = getUserId()
     const stored = typeof window !== 'undefined'
@@ -50,7 +49,6 @@ export default function Page() {
     if (stored) setName(stored)
   }, [])
 
-  // Load dictionary once
   useEffect(() => {
     fetch('/api/dictionary')
       .then((r) => r.json())
@@ -59,12 +57,10 @@ export default function Page() {
         dictSet.current = new Set(words)
       })
       .catch(() => {
-        // still allow play with fallback seeds
         dictSet.current = new Set(FALLBACK_SEEDS)
       })
   }, [])
 
-  // Pull top daily scorer (home screen)
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
     getDailyLeaderboard(today, 1)
@@ -74,7 +70,6 @@ export default function Page() {
       .catch(() => {})
   }, [])
 
-  // Start game when entering game screen
   useEffect(() => {
     if (screen !== 'game') return
     startGame()
@@ -99,9 +94,6 @@ export default function Page() {
     }
   }
 
-  /* --------- validation --------- */
-
-  // exactly ONE edit (insert/delete/replace)
   function isOneEditAway(a: string, b: string): boolean {
     a = a.toUpperCase()
     b = b.toUpperCase()
@@ -128,6 +120,13 @@ export default function Page() {
   const handleSubmit = () => {
     const w = input.trim().toUpperCase()
     if (!w) return
+
+    // no duplicates in this run
+    if (stack.includes(w)) {
+      alert('You already used that word.')
+      return
+    }
+
     if (!dictSet.current.has(w)) {
       alert('Not a valid English word.')
       return
@@ -185,11 +184,13 @@ export default function Page() {
     gaEvent('share_click', { score, mode })
 
     if (navigator.share) {
-      navigator.share({
-        title: 'My Stackle Word Score',
-        text: shareText,
-        url: window.location.href,
-      }).catch(() => {})
+      navigator
+        .share({
+          title: 'My Stackle Word Score',
+          text: shareText,
+          url: window.location.href,
+        })
+        .catch(() => {})
     } else {
       navigator.clipboard.writeText(`${shareText} Play at ${window.location.href}`)
       alert('Link copied to clipboard!')
@@ -210,7 +211,6 @@ export default function Page() {
     }
   }
 
-  /* --------- UI --------- */
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
@@ -294,7 +294,7 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-            {/* Sticky top: input + score */}
+          {/* Sticky top */}
             <div className="sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-3">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
@@ -325,7 +325,6 @@ export default function Page() {
                 </motion.button>
               </div>
 
-              {/* Seed word */}
               {stack[0] && !loadingSeed && (
                 <div className="mb-2">
                   <div className="w-full text-center py-3 rounded-lg bg-gray-700 text-white text-2xl font-semibold tracking-widest">
@@ -354,7 +353,7 @@ export default function Page() {
               </AnimatePresence>
             </div>
 
-            {/* Bottom action bar */}
+            {/* Bottom bar */}
             <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3">
               <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
                 <button

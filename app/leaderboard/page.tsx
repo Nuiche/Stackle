@@ -3,9 +3,12 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getDailyLeaderboard, getEndlessLatest, getAllTime } from '@/lib/getLeaderboard'
-
-type Row = { id: string; name?: string; score: number; mode: string; date: string }
+import {
+  getDailyLeaderboard,
+  getEndlessLeaderboard,
+  getAllTimeLeaderboard,
+  Row,
+} from '@/lib/getLeaderboard'
 
 export default function LeaderboardPage() {
   const [todayRows, setTodayRows] = useState<Row[]>([])
@@ -14,28 +17,21 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const run = async () => {
+    ;(async () => {
       const todayStr = new Date().toISOString().slice(0, 10)
       const [t, e, a] = await Promise.all([
-        getDailyLeaderboard(todayStr, 50), // show more if you like
-        getEndlessLatest(20),
-        getAllTime(20),
+        getDailyLeaderboard(todayStr, 50),
+        getEndlessLeaderboard(20),
+        getAllTimeLeaderboard(20),
       ])
       setTodayRows(t)
       setEndlessRows(e)
       setAllTimeRows(a)
       setLoading(false)
-    }
-    run().catch(console.error)
+    })().catch(console.error)
   }, [])
 
-  const Section = ({
-    title,
-    rows,
-  }: {
-    title: string
-    rows: Row[]
-  }) => (
+  const Section = ({ title, rows }: { title: string; rows: Row[] }) => (
     <section className="mb-8">
       <h2 className="text-2xl font-bold mb-3 text-blue-600">{title}</h2>
       {rows.length === 0 ? (
@@ -57,11 +53,11 @@ export default function LeaderboardPage() {
                 key={r.id}
                 className={`flex items-center justify-between rounded-lg p-3 text-sm md:text-base shadow ${medal}`}
               >
-                <span className="font-semibold">#{i + 1}</span>
+                <span className="font-semibold w-10 text-left">#{i + 1}</span>
                 <span className="truncate mx-2 flex-1 text-center">
                   {r.name || 'Anon'}
                 </span>
-                <span className="font-semibold">{r.score}</span>
+                <span className="font-semibold w-12 text-right">{r.score}</span>
               </li>
             )
           })}
@@ -72,7 +68,7 @@ export default function LeaderboardPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black text-gray-900 px-4 pb-16 max-w-md mx-auto">
-      {/* Back button */}
+      {/* Back */}
       <div className="pt-4 pb-2">
         <Link
           href="/"
@@ -82,17 +78,21 @@ export default function LeaderboardPage() {
         </Link>
       </div>
 
-      <h1 className="text-3xl font-extrabold text-center mb-6">Leaderboard</h1>
+      {/* Banner */}
+      <div className="mb-8">
+        <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-green-500 px-4 py-4 shadow-lg text-center">
+          <h1 className="text-4xl font-extrabold text-white tracking-wide">
+            Global Rankings
+          </h1>
+        </div>
+      </div>
 
       {loading ? (
         <p className="text-center text-gray-500">Loading…</p>
       ) : (
         <>
-          <Section
-            title={`Today (${new Date().toISOString().slice(0, 10)})`}
-            rows={todayRows}
-          />
-          <Section title="Endless (latest 20)" rows={endlessRows} />
+          <Section title="Daily Challenge" rows={todayRows} />
+          <Section title="Endless" rows={endlessRows} />
           <Section title="All Time (Top 20)" rows={allTimeRows} />
         </>
       )}
