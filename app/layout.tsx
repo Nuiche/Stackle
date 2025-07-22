@@ -2,11 +2,13 @@
 import '../styles/globals.css'
 import Script from 'next/script'
 import type { ReactNode } from 'react'
-import Analytics from './analytics' 
 
 export const metadata = {
   title: 'Stackle Word',
   description: 'Daily & Endless word-stacking game',
+}
+
+export const viewport = {
   themeColor: '#3B82F6',
 }
 
@@ -17,8 +19,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#3B82F6" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <meta name="theme-color" content="#3B82F6" />
 
         {gaId && (
           <>
@@ -32,14 +34,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', '${gaId}', { send_page_view: false });
+                gtag('config', '${gaId}');
               `}
             </Script>
           </>
         )}
       </head>
-      
-      <body><Analytics/>{children}</body>
+      <body>{children}</body>
     </html>
   )
 }
