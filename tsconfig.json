@@ -8,11 +8,12 @@
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
+    "moduleResolution": "node",        // switched from "bundler" to "node"
+    "resolveJsonModule": true,         // now recognized
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "types": ["next", "node"],         // added trailing comma
     "plugins": [
       {
         "name": "next"
@@ -20,8 +21,16 @@
     ],
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "baseUrl": "."                     // recommended for your "@/*" alias
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "app/api/dictionary/route.js",
+    "app/api/seed/route.js"
+, "next.config.js"  ],
   "exclude": ["node_modules"]
 }
