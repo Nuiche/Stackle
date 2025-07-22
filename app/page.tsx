@@ -1,5 +1,4 @@
 // app/page.tsx
-
 'use client'
 
 import React, {
@@ -9,9 +8,11 @@ import React, {
   KeyboardEvent,
   ChangeEvent,
 } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FaShareAlt } from 'react-icons/fa'
+import { FaShareAlt, FaTrophy } from 'react-icons/fa'
 import { event as gaEvent } from '@/lib/gtag'
+import { saveScore } from '@/lib/saveScore'
 
 type GameMode = 'endless' | 'daily'
 
@@ -20,30 +21,30 @@ export default function Page() {
   const [dictionary, setDictionary] = useState<string[]>([])
   const [stack, setStack] = useState<string[]>([])
   const [input, setInput] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Load dictionary once
+  // load dictionary
   useEffect(() => {
     fetch('/api/dictionary')
-      .then((res) => res.json())
+      .then((r) => r.json())
       .then((words: string[]) => setDictionary(words))
   }, [])
 
-  // Seed word on mode change or when dictionary loads
+  // seed word when mode or dictionary changes
   useEffect(() => {
     if (!dictionary.length) return
-    if (mode === 'daily') {
-      fetch('/api/seed')
-        .then((res) => res.json())
-        .then((data: { seed: string }) => {
-          setStack([data.seed])
-          inputRef.current?.focus()
-        })
-    } else {
-      const rand = dictionary[Math.floor(Math.random() * dictionary.length)]
-      setStack([rand])
+    const init = async () => {
+      if (mode === 'daily') {
+        const d = await (await fetch('/api/seed')).json()
+        setStack([d.seed])
+      } else {
+        const rand = dictionary[Math.floor(Math.random() * dictionary.length)]
+        setStack([rand])
+      }
       inputRef.current?.focus()
     }
+    init()
   }, [mode, dictionary])
 
   const isValidMove = (oldW: string, newW: string) => {
@@ -60,14 +61,14 @@ export default function Page() {
   const handleSubmit = () => {
     const w = input.trim().toUpperCase()
     if (!w) return
-    const oldW = stack[0]
-    if (isValidMove(oldW, w)) {
+    const currentSeed = stack[0]
+    if (isValidMove(currentSeed, w)) {
       const newStack = [w, ...stack]
       setStack(newStack)
       setInput('')
       gaEvent('word_submit', { word: w, stackSize: newStack.length, mode })
     } else {
-      gaEvent('invalid_move', { attempted: w, from: oldW, mode })
+      gaEvent('invalid_move', { attempted: w, from: currentSeed, mode })
       alert('Invalid move!')
     }
     inputRef.current?.focus()
@@ -107,10 +108,24 @@ export default function Page() {
     }
   }
 
+  const handleSubmitScore = async () => {
+    setIsSaving(true)
+    try {
+      await saveScore({ mode, score: stack.length })
+      gaEvent('score_submit', { score: stack.length, mode })
+      alert('Score submitted!')
+    } catch (e) {
+      console.error(e)
+      alert('Failed to submit score. Check console / rules.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-100 to-gray-500 p-4 flex flex-col items-center">
       <div className="w-full max-w-md mx-auto">
-        {/* Mode switch */}
+        {/* mode toggle */}
         <div className="flex mb-4 space-x-2 text-sm md:text-base">
           <button
             onClick={() => switchMode('endless')}
@@ -134,7 +149,7 @@ export default function Page() {
           </button>
         </div>
 
-        {/* Input */}
+        {/* input */}
         <div className="mb-4">
           <input
             ref={inputRef}
@@ -147,12 +162,12 @@ export default function Page() {
           />
         </div>
 
-        {/* Stack */}
+        {/* stack */}
         <div className="space-y-2">
           <AnimatePresence initial={false}>
             {stack.map((word, i) => (
               <motion.div
-                key={`${word}-${i}`} // in case same word appears twice
+                key={`${word}-${i}`}
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
@@ -166,7 +181,7 @@ export default function Page() {
           </AnimatePresence>
         </div>
 
-        {/* Share */}
+        {/* share & submit */}
         <button
           onClick={handleShare}
           className="mt-4 w-full py-2 bg-indigo-500 text-white rounded-lg flex items-center justify-center space-x-2"
@@ -174,6 +189,22 @@ export default function Page() {
           <FaShareAlt />
           <span>Share My Score</span>
         </button>
+
+        <button
+          onClick={handleSubmitScore}
+          disabled={isSaving}
+          className="mt-2 w-full py-2 bg-emerald-600 text-white rounded-lg flex items-center justify-center space-x-2 disabled:opacity-60"
+        >
+          <FaTrophy />
+          <span>{isSaving ? 'Submitting…' : 'Submit Score'}</span>
+        </button>
+
+        <Link
+          href="/leaderboard"
+          className="block text-center text-sm mt-4 underline text-gray-800"
+        >
+          View Leaderboard
+        </Link>
       </div>
     </main>
   )
