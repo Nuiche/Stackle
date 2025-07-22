@@ -1,5 +1,6 @@
 // app/layout.tsx
 import '../styles/globals.css'
+import './globals.css' 
 import Script from 'next/script'
 import type { ReactNode } from 'react'
 
