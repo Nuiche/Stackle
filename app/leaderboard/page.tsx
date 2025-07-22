@@ -93,7 +93,9 @@ function Section({ title, rows, uid }: { title: string; rows: Row[]; uid: string
             >
               <span className="w-8 text-gray-500">#{i + 1}</span>
               <span className="flex-1 text-center font-semibold">{r.score}</span>
-              <span className="w-16 text-right text-gray-500">{r.uid.slice(0, 6)}</span>
+              <span className="w-20 text-right text-gray-500 truncate"> 
+                {r.name ?? r.uid.slice(0, 6)}
+</span>
             </li>
           )
         })}

@@ -14,11 +14,13 @@ import {
 export type Row = {
   id: string
   uid: string
+  name?: string
   score: number
   date: string
   mode: string
   createdAt?: unknown
 }
+
 
 const mapDocs = (snap: QuerySnapshot<DocumentData>) =>
   snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Row, 'id'>) }))
