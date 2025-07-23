@@ -38,17 +38,18 @@ export default function Page() {
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
 
   const [scramblesUsed, setScramblesUsed] = useState(0)
-
   const [showHelp, setShowHelp] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  /* ---------- init ---------- */
+  /* -------- init -------- */
   useEffect(() => {
     uidRef.current = getUserId()
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('stackle_name') : null
-    if (stored) setName(stored)
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('stackle_name')
+      if (stored) setName(stored)
+    }
   }, [])
 
   useEffect(() => {
@@ -89,7 +90,7 @@ export default function Page() {
       }
       setInput('')
       setScramblesUsed(0)
-      // show help once per session
+
       const seen = localStorage.getItem('stackle_help_seen')
       if (!seen) {
         setShowHelp(true)
@@ -101,26 +102,23 @@ export default function Page() {
     }
   }
 
-  /* ---------- validate one edit ---------- */
   function isOneEditAway(a: string, b: string): boolean {
     a = a.toUpperCase()
     b = b.toUpperCase()
     if (a === b) return false
-    const lenA = a.length
-    const lenB = b.length
-    if (Math.abs(lenA - lenB) > 1) return false
-    if (lenA > lenB) return isOneEditAway(b, a)
+    if (Math.abs(a.length - b.length) > 1) return false
+    if (a.length > b.length) return isOneEditAway(b, a)
 
     let i = 0, j = 0, edits = 0
-    while (i < lenA && j < lenB) {
+    while (i < a.length && j < b.length) {
       if (a[i] === b[j]) { i++; j++ }
       else {
         edits++
         if (edits > 1) return false
-        if (lenA === lenB) { i++; j++ } else { j++ }
+        if (a.length === b.length) { i++; j++ } else { j++ }
       }
     }
-    if (j < lenB || i < lenA) edits++
+    if (j < b.length || i < a.length) edits++
     return edits === 1
   }
 
@@ -142,10 +140,10 @@ export default function Page() {
       if (navigator.vibrate) navigator.vibrate(15)
       if (wordsStacked > 0 && wordsStacked % 5 === 0) burst()
 
+      // rotate plane
       setSendSpin(true)
       setTimeout(() => setSendSpin(false), 350)
 
-      // ripple
       document.querySelectorAll('.stack-item').forEach((el, idx) => {
         if (idx === 0) return
         el.animate(
@@ -157,13 +155,15 @@ export default function Page() {
           { duration: 220, delay: idx * 12 }
         )
       })
+
+      // persist last score
+      localStorage.setItem('stackle_last_score', String(wordsStacked))
     } else {
       gaEvent('invalid_move', { attempted: w, from: seed, mode })
       alert('Invalid move! Must be exactly one edit away.')
     }
   }
 
-  // desktop physical keyboard
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') submitWord()
     if (e.key === 'Backspace') setInput((s) => s.slice(0, -1))
@@ -225,40 +225,42 @@ export default function Page() {
     burst()
   }
 
+  /* ---------- Animations ---------- */
   const popVariants: Variants = {
-  hidden: { scale: 0.5, y: -40, opacity: 0 },
-  show: {
-    scale: 1,
-    y: 0,
-    opacity: 1,
-    transition: { type: 'spring', stiffness: 500, damping: 25 } as const,
-  }, 
- };
+    hidden: { scale: 0.5, y: -40, opacity: 0 },
+    show: {
+      scale: 1,
+      y: 0,
+      opacity: 1,
+      transition: { type: 'spring', stiffness: 500, damping: 25 } as const,
+    },
+  }
+
+  const homeParent: Variants = {
+    hidden: { opacity: 0, y: -40 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { staggerChildren: 0.2, delayChildren: 0.3 }, // slower
+    },
+  }
+
+  const homeChild: Variants = {
+    hidden: { opacity: 0, y: -20 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { type: 'spring', stiffness: 300, damping: 28 } as const,
+    },
+  }
 
   const vkOnChar = (c: string) => setInput((s) => (s + c).toUpperCase())
   const vkOnDelete = () => setInput((s) => s.slice(0, -1))
   const vkOnEnter = () => submitWord()
-
-  /* Home screen trickle animation */
-  const homeParent: Variants = {
-  hidden: { opacity: 0, y: -40 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { staggerChildren: 0.12, delayChildren: 0.1 },
-  },
-};
- const homeChild: Variants = {
-  hidden: { opacity: 0, y: -20 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring', stiffness: 400, damping: 20 } as const,
-  },
-};
+  const activeChars = new Set(input.split(''))
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
+    <main className="min-h-screen bg-gradient-to-b from-[#FAFAFA] to-[#BDBDBD] flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
         {screen === 'home' && (
           <motion.div
@@ -298,7 +300,6 @@ export default function Page() {
               </div>
             </motion.div>
 
-            {/* Venmo block */}
             <motion.div
               variants={homeChild}
               className="absolute left-3 bottom-3 text-[#334155] flex flex-col items-start space-y-1"
@@ -358,7 +359,6 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-            {/* Scramble button */}
             {tokensAvailable > 0 && (
               <motion.button
                 initial={{ scale: 0, opacity: 0 }}
@@ -373,8 +373,8 @@ export default function Page() {
               </motion.button>
             )}
 
-            {/* Input & Seed in center-ish */}
-            <div className="sticky top-[28vh] z-10 bg-transparent backdrop-blur-sm pb-3">
+            {/* Input & seed */}
+            <div className="sticky top-[28vh] z-10 bg-transparent backdrop-blur-sm pb-4">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
                   <input
@@ -413,8 +413,8 @@ export default function Page() {
               )}
             </div>
 
-            {/* Past words */}
-            <div className="mt-4 space-y-3 pb-48 overflow-visible">
+            {/* Past words container (faded a bit because VK visible) */}
+            <div className="mt-6 space-y-3 pb-52 opacity-90">
               <AnimatePresence initial={false}>
                 {stack.slice(1).map((word, i) => (
                   <motion.div
@@ -432,15 +432,16 @@ export default function Page() {
               </AnimatePresence>
             </div>
 
-            {/* VK */}
+            {/* Virtual keyboard */}
             <VirtualKeyboard
               onChar={vkOnChar}
               onDelete={vkOnDelete}
               onEnter={vkOnEnter}
               disabled={loadingSeed}
+              activeChars={activeChars}
             />
 
-            {/* Bottom bar */}
+            {/* Bottom actions */}
             <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">
               <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
                 <button
