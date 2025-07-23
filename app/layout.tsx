@@ -1,6 +1,6 @@
-// app/layout.tsx
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { Cinzel } from 'next/font/google'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://lexit.uno'),
@@ -26,6 +26,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: '#3B82F6'
 }
+
+// Title font
+export const titleFont = Cinzel({ subsets: ['latin'], weight: ['700'] })
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

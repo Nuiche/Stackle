@@ -10,6 +10,8 @@ import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
 import { getUserId } from '@/lib/user'
 import { getDailyLeaderboard } from '@/lib/getLeaderboard'
+import { getESTDayKey } from '@/lib/dayKey'
+import { titleFont } from '../layout'
 
 type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
@@ -60,9 +62,10 @@ export default function Page() {
       })
   }, [])
 
+  // Use EST date for daily top display
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10)
-    getDailyLeaderboard(today, 1)
+    const todayEST = getESTDayKey()
+    getDailyLeaderboard(todayEST, 1)
       .then(rows => rows.length && setTopDaily({ name: rows[0].name, score: rows[0].score }))
       .catch(() => {})
   }, [])
@@ -205,7 +208,7 @@ export default function Page() {
     burst()
   }
 
-  // Animations
+  // Animation variants
   const homeParent: Variants = {
     hidden: { opacity: 0, y: -60 },
     show: {
@@ -253,7 +256,10 @@ export default function Page() {
             exit={{ opacity: 0, y: -30 }}
             className="w-full max-w-md px-6 text-center space-y-6 relative flex flex-col justify-center min-h-[80vh]"
           >
-            <motion.h1 variants={homeChild} className="text-3xl font-bold mb-2 text-[#334155]">
+            <motion.h1
+              variants={homeChild}
+              className={`${titleFont.className} text-5xl font-bold mb-2 text-[#334155]`}
+            >
               Lexit
             </motion.h1>
             <motion.p variants={homeChild} className="text-sm italic text-gray-600 mb-6">
@@ -265,7 +271,7 @@ export default function Page() {
                 onClick={() => goMode('endless')}
                 className="w-full py-3 rounded-lg bg-[#3BB2F6] text-white text-lg"
               >
-                Endless
+                Endless Mode
               </button>
               <div>
                 <button
@@ -282,7 +288,7 @@ export default function Page() {
               </div>
             </motion.div>
 
-            {/* Change nickname link (subtle, bottom-right) */}
+            {/* Change nickname link */}
             <motion.button
               variants={homeChild}
               onClick={() => setScreen('nickname')}
@@ -333,122 +339,120 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-            {/* Back button */}
-            <button
-              onClick={handleBackToHome}
-              className="fixed top-4 right-4 z-50 text-sm underline text-gray-500"
+          {/* Back button */}
+          <button
+            onClick={handleBackToHome}
+            className="fixed top-4 right-4 z-50 text-sm underline text-gray-500"
+          >
+            Back
+          </button>
+
+          {/* Scramble */}
+          {tokensAvailable > 0 && (
+            <motion.button
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleScramble}
+              className="fixed top-4 left-4 w-12 h-12 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center z-50"
+              aria-label="Scramble seed"
             >
-              Back
-            </button>
+              <img src="/icons/reset.png" alt="Scramble" className="w-8 h-8" />
+            </motion.button>
+          )}
 
-            {/* Scramble token button */}
-            {tokensAvailable > 0 && (
+          <div className="mt-[7vh] mb-4">
+            <div className="mb-2 flex space-x-2 items-center">
+              <div className="relative flex-1">
+                <input
+                  ref={inputRef}
+                  readOnly
+                  inputMode="none"
+                  value={input}
+                  onKeyDown={onKeyDown}
+                  className="w-full p-3 pr-14 border-2 border-[#334155] rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-[#3BB2F6] bg-[#F1F5F9] select-none"
+                  placeholder={loadingSeed ? 'LOADING…' : 'ENTER WORD'}
+                  onFocus={e => e.currentTarget.blur()}
+                />
+                <span className="absolute inset-y-0 right-3 flex items-center text-[#334155] font-semibold">
+                  {score}
+                </span>
+              </div>
               <motion.button
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
                 whileTap={{ scale: 0.9 }}
-                onClick={handleScramble}
-                className="fixed top-4 left-4 w-12 h-12 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center z-50"
-                aria-label="Scramble seed"
+                animate={sendSpin ? { rotate: 360 } : { rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                onClick={submitWord}
+                disabled={loadingSeed}
+                className="px-5 py-3 rounded-lg bg-[#3BB2F6] text-white text-xl flex items-center justify-center disabled:opacity-50"
+                aria-label="Submit word"
               >
-                <img src="/icons/reset.png" alt="Scramble" className="w-8 h-8" />
+                <FaPaperPlane />
               </motion.button>
+            </div>
+
+            {stack[0] && !loadingSeed && (
+              <div className="mb-2">
+                <div className="w-full text-center py-3 rounded-lg bg-[#334155] text-white text-2xl font-semibold tracking-widest">
+                  {stack[0]}
+                </div>
+              </div>
             )}
+          </div>
 
-            <div className="mt-[7vh] mb-4">
-              <div className="mb-2 flex space-x-2 items-center">
-                <div className="relative flex-1">
-                  <input
-                    ref={inputRef}
-                    readOnly
-                    inputMode="none"
-                    value={input}
-                    onKeyDown={onKeyDown}
-                    className="w-full p-3 pr-14 border-2 border-[#334155] rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-[#3BB2F6] bg-[#F1F5F9] select-none"
-                    placeholder={loadingSeed ? 'LOADING…' : 'ENTER WORD'}
-                    onFocus={e => e.currentTarget.blur()}
-                  />
-                  <span className="absolute inset-y-0 right-3 flex items-center text-[#334155] font-semibold">
-                    {score}
-                  </span>
-                </div>
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  animate={sendSpin ? { rotate: 360 } : { rotate: 0 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                  onClick={submitWord}
-                  disabled={loadingSeed}
-                  className="px-5 py-3 rounded-lg bg-[#3BB2F6] text-white text-xl flex items-center justify-center disabled:opacity-50"
-                  aria-label="Submit word"
+          <div className="flex-1 overflow-y-auto mt-2 space-y-3 pb-72">
+            <AnimatePresence initial={false}>
+              {stack.slice(1).map((word, i) => (
+                <motion.div
+                  key={`${word}-${i}`}
+                  layout
+                  initial="hidden"
+                  animate="show"
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  variants={popVariants}
+                  className="stack-item p-4 rounded-lg shadow bg-[#10B981] text-white text-lg"
                 >
-                  <FaPaperPlane />
-                </motion.button>
-              </div>
+                  {word}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
 
-              {stack[0] && !loadingSeed && (
-                <div className="mb-2">
-                  <div className="w-full text-center py-3 rounded-lg bg-[#334155] text-white text-2xl font-semibold tracking-widest">
-                    {stack[0]}
-                  </div>
-                </div>
-              )}
+          <VirtualKeyboard
+            onChar={vkOnChar}
+            onDelete={vkOnDelete}
+            onEnter={vkOnEnter}
+            disabled={loadingSeed}
+            activeChars={activeChars}
+          />
+
+          <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">
+            <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
+              <button
+                onClick={handleShare}
+                className="flex-1 py-2 bg-[#3BB2F6] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
+              >
+                <FaShareAlt /> <span>Share</span>
+              </button>
+              <button
+                onClick={handleSubmitScore}
+                disabled={isSaving || submittedScore}
+                className="flex-1 py-2 bg-[#10B981] text-white rounded-lg flex items-center justify-center space-x-1 text-sm disabled:opacity-60"
+              >
+                <FaTrophy /> <span>{isSaving ? 'Saving…' : submittedScore ? 'Saved' : 'Submit'}</span>
+              </button>
+              <Link
+                href="/leaderboard"
+                className="flex-1 py-2 bg-[#334155] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
+              >
+                <span>Board</span>
+              </Link>
             </div>
+          </div>
 
-            {/* Past words */}
-            <div className="flex-1 overflow-y-auto mt-2 space-y-3 pb-72">
-              <AnimatePresence initial={false}>
-                {stack.slice(1).map((word, i) => (
-                  <motion.div
-                    key={`${word}-${i}`}
-                    layout
-                    initial="hidden"
-                    animate="show"
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    variants={popVariants}
-                    className="stack-item p-4 rounded-lg shadow bg-[#10B981] text-white text-lg"
-                  >
-                    {word}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-
-            <VirtualKeyboard
-              onChar={vkOnChar}
-              onDelete={vkOnDelete}
-              onEnter={vkOnEnter}
-              disabled={loadingSeed}
-              activeChars={activeChars}
-            />
-
-            {/* Bottom action bar */}
-            <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">
-              <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
-                <button
-                  onClick={handleShare}
-                  className="flex-1 py-2 bg-[#3BB2F6] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
-                >
-                  <FaShareAlt /> <span>Share</span>
-                </button>
-                <button
-                  onClick={handleSubmitScore}
-                  disabled={isSaving || submittedScore}
-                  className="flex-1 py-2 bg-[#10B981] text-white rounded-lg flex items-center justify-center space-x-1 text-sm disabled:opacity-60"
-                >
-                  <FaTrophy /> <span>{isSaving ? 'Saving…' : submittedScore ? 'Saved' : 'Submit'}</span>
-                </button>
-                <Link
-                  href="/leaderboard"
-                  className="flex-1 py-2 bg-[#334155] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
-                >
-                  <span>Board</span>
-                </Link>
-              </div>
-            </div>
-
-            <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
-          </motion.div>
+          <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
+        </motion.div>
         )}
       </AnimatePresence>
     </main>
