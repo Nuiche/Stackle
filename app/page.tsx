@@ -226,32 +226,36 @@ export default function Page() {
   }
 
   const popVariants: Variants = {
-    hidden: { scale: 0.5, y: -40, opacity: 0 },
-    show: {
-      scale: 1,
-      y: 0,
-      opacity: 1,
-      transition: { type: 'spring', stiffness: 500, damping: 25 },
-    },
-  }
+  hidden: { scale: 0.5, y: -40, opacity: 0 },
+  show: {
+    scale: 1,
+    y: 0,
+    opacity: 1,
+    transition: { type: 'spring', stiffness: 500, damping: 25 } as const,
+  }, 
+ };
 
   const vkOnChar = (c: string) => setInput((s) => (s + c).toUpperCase())
   const vkOnDelete = () => setInput((s) => s.slice(0, -1))
   const vkOnEnter = () => submitWord()
 
   /* Home screen trickle animation */
-  const homeParent = {
-    hidden: { opacity: 0, y: -40 },
-    show: {
-      opacity: 1,
-      y: 0,
-      transition: { staggerChildren: 0.12, delayChildren: 0.1 },
-    },
-  }
-  const homeChild = {
-    hidden: { opacity: 0, y: -20 },
-    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 400, damping: 20 } },
-  }
+  const homeParent: Variants = {
+  hidden: { opacity: 0, y: -40 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { staggerChildren: 0.12, delayChildren: 0.1 },
+  },
+};
+ const homeChild: Variants = {
+  hidden: { opacity: 0, y: -20 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 400, damping: 20 } as const,
+  },
+};
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
