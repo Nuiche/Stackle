@@ -1,11 +1,10 @@
-// components/ShareModal.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  imageUrl: string; // <-- matches usage in app/page.tsx
+  imageUrl: string;
 };
 
 export default function ShareModal({ open, onClose, imageUrl }: Props) {
@@ -13,7 +12,6 @@ export default function ShareModal({ open, onClose, imageUrl }: Props) {
   const [err, setErr] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Fetch & blobify the image when opened or URL changes
   useEffect(() => {
     if (!open || !imageUrl) return;
     let revoked = false;

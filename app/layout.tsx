@@ -1,34 +1,29 @@
-import type { Metadata, Viewport } from 'next'
+// app/layout.tsx
 import './globals.css'
+import { Inter } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+
+const inter = Inter({ subsets: ['latin'], display: 'swap' })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://lexit.uno'),
   title: 'Lexit',
-  description: 'Change one letter. Stack your way to the top.',
-  openGraph: {
-    url: 'https://lexit.uno',
-    title: 'Lexit',
-    description: 'Change one letter. Stack your way to the top.',
-    siteName: 'Lexit',
-    images: ['/og-image.png'],
-    type: 'website'
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Lexit',
-    description: 'Change one letter. Stack your way to the top.',
-    images: ['/og-image.png']
-  }
+  description: 'A little goes a long way.',
 }
 
 export const viewport: Viewport = {
-  themeColor: '#3B82F6'
+  themeColor: '#3BB2F6',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className={inter.className}>
+      <body className="bg-[#F1F5F9] text-[#334155] min-h-screen">
+        {children}
+      </body>
     </html>
   )
 }
