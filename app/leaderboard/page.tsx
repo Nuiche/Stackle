@@ -1,13 +1,16 @@
 // app/leaderboard/page.tsx
 import React from 'react'
 import Link from 'next/link'
-import { getToday, getDailyLeaderboard, getEndlessLatest, getAllTime } from '@/lib/getLeaderboard'
+import { getDailyLeaderboard, getEndlessLatest, getAllTime } from '@/lib/getLeaderboard'
 import { getTotalGames } from '@/lib/getTotalGames'
 
 export const revalidate = 120
 
+const todayISO = () => new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+
 export default async function LeaderboardPage() {
-  const today = getToday()
+  const today = todayISO()
+
   const [daily, endless, allTime, total] = await Promise.all([
     getDailyLeaderboard(today, 20),
     getEndlessLatest(20),
@@ -50,7 +53,8 @@ export default async function LeaderboardPage() {
           <div>
             {daily.map((r, i) => (
               <div key={r.id} className={`${podiumBg(i)} rounded`}>
-                <Row i={i} n={r.name} s={r.score} />
+                <Row key={r.id} i={i} n={r.name ?? 'Anon'} s={r.score} />
+
               </div>
             ))}
           </div>
@@ -59,16 +63,16 @@ export default async function LeaderboardPage() {
         <Section title="Endless">
           {endless.length === 0 && <p className="text-sm text-gray-500">No scores yet.</p>}
           <div>
-            {endless.map((r, i) => <Row key={r.id} i={i} n={r.name} s={r.score} />)}
+            {endless.map((r, i) => <Row key={r.id} i={i} n={r.name ?? 'Anon'} s={r.score} />
+)}
           </div>
         </Section>
 
         <Section title="All Time (Top 20)">
           {allTime.length === 0 && <p className="text-sm text-gray-500">No scores yet.</p>}
           <div>
-            {allTime.map((r, i) => (
-              <Row key={r.id} i={i} n={r.name} s={r.score} />
-            ))}
+            {allTime.map((r, i) => <Row key={r.id} i={i} n={r.name ?? 'Anon'} s={r.score} />
+)}
           </div>
         </Section>
 
