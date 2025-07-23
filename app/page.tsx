@@ -1,4 +1,3 @@
-// app/page.tsx
 'use client'
 
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react'
@@ -18,30 +17,26 @@ type Screen = 'home' | 'nickname' | 'game'
 
 const MILESTONES = [5, 12, 21, 32, 45]
 const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
+const HELP_KEY = 'stackle_help_seen_v2'
 
 export default function Page() {
-  /* ---------- state ---------- */
   const [screen, setScreen] = useState<Screen>('home')
   const [mode, setMode] = useState<GameMode>('endless')
   const [name, setName] = useState('')
   const [dictionary, setDictionary] = useState<string[]>([])
   const dictSet = useRef<Set<string>>(new Set())
-
-  const [stack, setStack] = useState<string[]>([]) // seed at index 0
+  const [stack, setStack] = useState<string[]>([])
   const [input, setInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [sendSpin, setSendSpin] = useState(false)
   const [loadingSeed, setLoadingSeed] = useState(false)
-
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
-
   const [scramblesUsed, setScramblesUsed] = useState(0)
   const [showHelp, setShowHelp] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  /* ---------- init ---------- */
   useEffect(() => {
     uidRef.current = getUserId()
     const stored = typeof window !== 'undefined' ? localStorage.getItem('stackle_name') : null
@@ -67,7 +62,6 @@ export default function Page() {
       .catch(() => {})
   }, [])
 
-  /* ---------- start game ---------- */
   useEffect(() => {
     if (screen !== 'game') return
     startGame()
@@ -86,18 +80,17 @@ export default function Page() {
       }
       setInput('')
       setScramblesUsed(0)
-      if (!localStorage.getItem('stackle_help_seen')) {
+
+      if (!localStorage.getItem(HELP_KEY)) {
         setShowHelp(true)
-        localStorage.setItem('stackle_help_seen', '1')
+        localStorage.setItem(HELP_KEY, '1')
       }
-      // keep native keyboard closed
       setTimeout(() => inputRef.current?.blur(), 0)
     } finally {
       setLoadingSeed(false)
     }
   }
 
-  /* ---------- logic ---------- */
   function isOneEditAway(a: string, b: string) {
     a = a.toUpperCase(); b = b.toUpperCase()
     if (a === b) return false
@@ -123,24 +116,15 @@ export default function Page() {
     if (!w) return
     if (stack.includes(w)) { alert('You already used that word.'); return }
     if (!dictSet.current.has(w)) { alert('Not a valid English word.'); return }
-    const seed = stack[0]
-    if (!isOneEditAway(seed, w)) {
-      gaEvent('invalid_move', { attempted: w, from: seed, mode })
-      alert('Invalid move! Must be exactly one edit away.')
-      return
-    }
+    if (!isOneEditAway(stack[0], w)) { alert('Invalid move! Must be exactly one edit away.'); return }
 
     const newStack = [w, ...stack]
     setStack(newStack)
     setInput('')
-
     const newScore = Math.max(newStack.length - 1, 0)
-    gaEvent('word_submit', { word: w, stackSize: newScore, mode })
     localStorage.setItem('stackle_last_score', String(newScore))
-
     if (navigator.vibrate) navigator.vibrate(15)
     if (newScore > 0 && newScore % 5 === 0) burst()
-
     setSendSpin(true); setTimeout(() => setSendSpin(false), 350)
   }
 
@@ -152,7 +136,6 @@ export default function Page() {
 
   const goMode = (m: GameMode) => {
     setMode(m)
-    gaEvent('mode_select', { mode: m })
     if (name.trim().length >= 2) setScreen('game')
     else setScreen('nickname')
   }
@@ -166,7 +149,6 @@ export default function Page() {
 
   const handleShare = () => {
     const txt = `I stacked ${score} words in Stackle Word!`
-    gaEvent('share_click', { score, mode })
     if (navigator.share) {
       navigator.share({ title: 'My Stackle Word Score', text: txt, url: window.location.href }).catch(() => {})
     } else {
@@ -179,7 +161,6 @@ export default function Page() {
     setIsSaving(true)
     try {
       await saveScore({ mode, score, name })
-      gaEvent('score_submit', { score, mode })
       alert('Score submitted!')
     } catch (e) {
       console.error(e)
@@ -195,25 +176,20 @@ export default function Page() {
   const handleScramble = () => {
     if (tokensAvailable <= 0) return
     const list = dictionary.length ? dictionary : FALLBACK_SEEDS
-    let newSeed = list[Math.floor(Math.random() * list.length)]
-    while (stack.includes(newSeed)) newSeed = list[Math.floor(Math.random() * list.length)]
-    setStack([newSeed, ...stack])
+    let ns = list[Math.floor(Math.random() * list.length)]
+    while (stack.includes(ns)) ns = list[Math.floor(Math.random() * list.length)]
+    setStack([ns, ...stack])
     setScramblesUsed(n => n + 1)
-    gaEvent('scramble_used', { atScore: score, mode })
     burst()
   }
 
-  /* ---------- animations ---------- */
   const popVariants: Variants = {
-    hidden: { opacity: 0, scale: 0.9, y: 8 }, // starts slightly BELOW header, not above
+    hidden: { opacity: 0, scale: 0.9, y: 12 },
     show: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
+      opacity: 1, scale: 1, y: 0,
       transition: { type: 'spring', stiffness: 400, damping: 25 } as const
     }
   }
-
   const homeParent: Variants = {
     hidden: { opacity: 0, y: -40 },
     show: { opacity: 1, y: 0, transition: { staggerChildren: 0.25, delayChildren: 0.4 } }
@@ -228,7 +204,6 @@ export default function Page() {
   const vkOnEnter = () => submitWord()
   const activeChars = new Set(input.split(''))
 
-  /* ---------- render ---------- */
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#FAFAFA] to-[#CFCFCF] flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
@@ -271,7 +246,7 @@ export default function Page() {
             </motion.div>
 
             <motion.div variants={homeChild} className="absolute left-3 bottom-3 text-[#334155]">
-              <span className="block text-sm font-semibold">@Nuiche 🕺</span>
+              <span className="block text-sm font-semibold">@Nuiche</span>
               <span className="uppercase tracking-wider opacity-70 text-[10px]">VENMO</span>
             </motion.div>
           </motion.div>
@@ -315,7 +290,6 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-            {/* scramble token */}
             {tokensAvailable > 0 && (
               <motion.button
                 initial={{ scale: 0, opacity: 0 }}
@@ -330,8 +304,7 @@ export default function Page() {
               </motion.button>
             )}
 
-            {/* Input + seed (center-ish) */}
-            <div className="mt-[8vh] mb-4">
+            <div className="mt-[7vh] mb-4">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
                   <input
@@ -370,7 +343,7 @@ export default function Page() {
               )}
             </div>
 
-            {/* Past words BELOW header */}
+            {/* Past words */}
             <div className="flex-1 overflow-y-auto mt-2 space-y-3 pb-72">
               <AnimatePresence initial={false}>
                 {stack.slice(1).map((word, i) => (
@@ -389,7 +362,6 @@ export default function Page() {
               </AnimatePresence>
             </div>
 
-            {/* VK */}
             <VirtualKeyboard
               onChar={vkOnChar}
               onDelete={vkOnDelete}
@@ -398,7 +370,6 @@ export default function Page() {
               activeChars={activeChars}
             />
 
-            {/* Bottom bar */}
             <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">
               <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
                 <button

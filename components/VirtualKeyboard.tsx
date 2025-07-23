@@ -1,4 +1,3 @@
-// components/VirtualKeyboard.tsx
 'use client'
 
 import React from 'react'
@@ -48,9 +47,8 @@ export default function VirtualKeyboard({
           {R1.map(renderKey)}
         </div>
 
-        {/* Row 2 */}
+        {/* Row 2 (letters + delete on the right) */}
         <div className="grid grid-cols-10 gap-2">
-          <div /> {/* spacer to center row */}
           {R2.map(renderKey)}
           <button
             aria-label="Delete"
@@ -62,9 +60,11 @@ export default function VirtualKeyboard({
           </button>
         </div>
 
-        {/* Row 3 */}
-        <div className="grid grid-cols-9 gap-2">
+        {/* Row 3 (letters + wide enter) */}
+        <div className="grid grid-cols-10 gap-2">
           {R3.map(renderKey)}
+          {/* Fill up to 8 cols then enter spans the rest */}
+          <div className="col-span-1" />
           <button
             aria-label="Enter"
             disabled={disabled}
