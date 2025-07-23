@@ -23,7 +23,7 @@ import { getDailyLeaderboard } from '@/lib/getLeaderboard'
 type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
 
-const MILESTONES = [5, 12, 21, 32] // add more if you like
+const MILESTONES = [5, 12, 21, 32]
 const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
 
 export default function Page() {
@@ -41,7 +41,6 @@ export default function Page() {
 
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
 
-  // scramble logic
   const [scramblesUsed, setScramblesUsed] = useState(0)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -50,8 +49,9 @@ export default function Page() {
   /* ---------- init ---------- */
   useEffect(() => {
     uidRef.current = getUserId()
-    const stored =
-      typeof window !== 'undefined' ? localStorage.getItem('stackle_name') : null
+    const stored = typeof window !== 'undefined'
+      ? localStorage.getItem('stackle_name')
+      : null
     if (stored) setName(stored)
   }, [])
 
@@ -111,22 +111,14 @@ export default function Page() {
     if (Math.abs(lenA - lenB) > 1) return false
     if (lenA > lenB) return isOneEditAway(b, a)
 
-    let i = 0,
-      j = 0,
-      edits = 0
+    let i = 0, j = 0, edits = 0
     while (i < lenA && j < lenB) {
       if (a[i] === b[j]) {
-        i++
-        j++
+        i++; j++
       } else {
         edits++
         if (edits > 1) return false
-        if (lenA === lenB) {
-          i++
-          j++
-        } else {
-          j++
-        }
+        if (lenA === lenB) { i++; j++ } else { j++ }
       }
     }
     if (j < lenB || i < lenA) edits++
@@ -162,17 +154,17 @@ export default function Page() {
       setSendSpin(true)
       setTimeout(() => setSendSpin(false), 350)
 
-      // light ripple on old tiles using Web Animations API
+      // subtle ripple on existing tiles
       const items = document.querySelectorAll('.stack-item')
       items.forEach((el, idx) => {
         if (idx === 0) return
         el.animate(
           [
             { transform: 'translateY(0px)' },
-            { transform: 'translateY(6px)' },
+            { transform: 'translateY(3px)' },   // ↓ was 6px
             { transform: 'translateY(0px)' },
           ],
-          { duration: 250, delay: idx * 15 }
+          { duration: 220, delay: idx * 12 }
         )
       })
     } else {
@@ -284,7 +276,9 @@ export default function Page() {
             className="w-full max-w-md p-6 pt-16 text-center space-y-6 relative"
           >
             <h1 className="text-3xl font-bold mb-4 text-[#334155]">Stackle Word</h1>
-            <p className="text-sm text-gray-600 mb-6">Choose a mode to start playing.</p>
+            <p className="text-sm text-gray-600 mb-6">
+              Choose a mode to start playing.
+            </p>
 
             <div className="space-y-3">
               <button
@@ -308,16 +302,19 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Venmo link bottom-left */}
-            <a
-              href="https://venmo.com/u/Nuiche"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="absolute left-3 bottom-3 flex items-center space-x-1 text-xs text-[#334155]"
-            >
-              <SiVenmo className="w-3.5 h-3.5" />
-              <span>@Nuiche 🕺</span>
-            </a>
+            {/* Venmo block */}
+            <div className="absolute left-3 bottom-3 text-[#334155] flex flex-col items-start space-y-1">
+              <span className="text-sm font-semibold">@Nuiche 🕺</span>
+              <a
+                href="https://venmo.com/u/Nuiche"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-1 opacity-80 text-[10px]"
+              >
+                <SiVenmo className="w-3.5 h-3.5" />
+                <span>venmo</span>
+              </a>
+            </div>
           </motion.div>
         )}
 
@@ -332,7 +329,9 @@ export default function Page() {
             className="w-full max-w-md p-6 pt-16 text-center space-y-6"
           >
             <h2 className="text-2xl font-semibold text-[#334155]">Session Nickname</h2>
-            <p className="text-sm text-gray-600">This will appear on the leaderboard.</p>
+            <p className="text-sm text-gray-600">
+              This will appear on the leaderboard.
+            </p>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -364,7 +363,7 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-            {/* Top input & seed */}
+            {/* Sticky top */}
             <div className="sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-3">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
@@ -434,7 +433,12 @@ export default function Page() {
                 className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center"
                 aria-label="Scramble seed"
               >
-                <Image src="/icons/reset.png" alt="Scramble" width={36} height={36} />
+                <Image
+                  src="/icons/reset.png"
+                  alt="Scramble"
+                  width={36}
+                  height={36}
+                />
               </motion.button>
             )}
 
