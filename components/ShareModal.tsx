@@ -19,7 +19,7 @@ export default function ShareModal({ open, onClose, imageUrl }: Props) {
     try {
       const res = await fetch(imageUrl)
       const blob = await res.blob()
-      // @ts-ignore
+      // @ts-ignore ClipboardItem may not be typed
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
       alert('Image copied to clipboard!')
     } catch {
@@ -50,7 +50,7 @@ export default function ShareModal({ open, onClose, imageUrl }: Props) {
     >
       <div
         className="bg-white rounded-xl p-4 max-w-sm w-full relative"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
@@ -60,7 +60,9 @@ export default function ShareModal({ open, onClose, imageUrl }: Props) {
           ×
         </button>
 
-        <h2 className="text-xl font-semibold text-[#334155] mb-3">Share Card</h2>
+        <h2 className="text-xl font-semibold text-[#334155] mb-3">
+          Share Card
+        </h2>
 
         <div className="w-full border rounded overflow-hidden mb-4 min-h-[120px] flex items-center justify-center bg-gray-50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -77,7 +79,14 @@ export default function ShareModal({ open, onClose, imageUrl }: Props) {
           {error && (
             <div className="text-sm text-red-500 px-2 text-center">
               Failed to load image.<br />
-              <a href={imageUrl} target="_blank" rel="noreferrer" className="underline text-blue-500">Open in new tab</a>
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline text-blue-500"
+              >
+                Open in new tab
+              </a>
             </div>
           )}
         </div>

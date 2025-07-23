@@ -49,6 +49,7 @@ export default function LeaderboardClient() {
       : i === 2 ? 'bg-[#CD7F3233]'
       : ''
 
+  // NAME  |  SEED – SCORE
   const renderRow = (r: Row, i: number) => (
     <div
       key={r.id}
