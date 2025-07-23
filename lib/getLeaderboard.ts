@@ -10,50 +10,49 @@ import {
 import { db } from './firebase';
 
 export type Row = {
+  id: string;
   name: string;
-  mode: 'daily' | 'endless';
   score: number;
-  seed?: string;        // legacy single seed (keep for old rows)
-  startSeed?: string;   // new fields
+  mode: string;
+  startSeed?: string;
   endSeed?: string;
   dayKey?: string;
-  createdAt: number;
+  createdAt?: any;
 };
 
-export async function getDailyLeaderboard(dayKey: string): Promise<Row[]> {
-  const ref = collection(db, 'scores');
+// Daily (top 15)
+export async function getDailyLeaderboard(dayKey: string, top = 15): Promise<Row[]> {
   const q = query(
-    ref,
+    collection(db, 'scores'),
     where('mode', '==', 'daily'),
     where('dayKey', '==', dayKey),
     orderBy('score', 'desc'),
-    orderBy('createdAt', 'asc'),
-    limit(15)
+    orderBy('__name__'),
+    limit(top)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data() as Row);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 }
 
-export async function getEndlessLatest(): Promise<Row[]> {
-  const ref = collection(db, 'scores');
+// ALL‑TIME (still here)
+export async function getAllTime(top = 50): Promise<Row[]> {
   const q = query(
-    ref,
-    where('mode', '==', 'endless'),
-    orderBy('createdAt', 'desc'),
-    limit(20)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data() as Row);
-}
-
-export async function getAllTime(): Promise<Row[]> {
-  const ref = collection(db, 'scores');
-  const q = query(
-    ref,
+    collection(db, 'scores'),
     orderBy('score', 'desc'),
-    orderBy('createdAt', 'asc'),
-    limit(20)
+    orderBy('__name__'),
+    limit(top)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data() as Row);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+// NEW: Most recent 10 games (any mode)
+export async function getMostRecent(top = 10): Promise<Row[]> {
+  const q = query(
+    collection(db, 'scores'),
+    orderBy('createdAt', 'desc'),
+    limit(top)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 }
