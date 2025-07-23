@@ -24,7 +24,7 @@ export default function VirtualKeyboard({
 }: Props) {
 
   const base =
-    'h-12 flex items-center justify-center rounded-lg font-semibold text-lg active:scale-95 disabled:opacity-50 transition-colors select-none'
+    'h-14 flex items-center justify-center rounded-xl font-semibold text-xl active:scale-95 disabled:opacity-50 transition-colors select-none'
 
   const keyBtn = (k: string) => {
     const active = activeChars?.has(k)
@@ -43,8 +43,9 @@ export default function VirtualKeyboard({
   }
 
   return (
-    <div className="fixed bottom-20 left-0 right-0 mx-auto max-w-md px-3 pb-2 z-60">
-      <div className="backdrop-blur bg-[#334155]/70 rounded-2xl p-3 shadow-xl space-y-3">
+    <div className="fixed bottom-20 left-0 right-0 mx-auto max-w-md px-2 z-60 pointer-events-auto">
+      {/* no gray housing, just rows */}
+      <div className="space-y-2">
         <div className="grid grid-cols-10 gap-2">{R1.map(keyBtn)}</div>
 
         <div className="grid grid-cols-10 gap-2">
@@ -66,7 +67,7 @@ export default function VirtualKeyboard({
             aria-label="Enter"
             disabled={disabled}
             onClick={onEnter}
-            className={`${base} col-span-2 bg-[#3BB2F6] text-white text-lg`}
+            className={`${base} col-span-2 bg-[#3BB2F6] text-white`}
           >
             ↵
           </button>
