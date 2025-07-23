@@ -1,8 +1,10 @@
-export function getESTDayKey(date: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(date)
+export function dayKey(): string {
+  const now = new Date();
+  const est = new Date(
+    now.toLocaleString('en-US', { timeZone: 'America/New_York' })
+  );
+  const y = est.getFullYear();
+  const m = String(est.getMonth() + 1).padStart(2, '0');
+  const d = String(est.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
