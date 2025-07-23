@@ -11,7 +11,9 @@ import React, {
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FaShareAlt, FaTrophy, FaPaperPlane, FaVenmo } from 'react-icons/fa'
+import type { Variants } from 'framer-motion'
+import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
+import { SiVenmo } from 'react-icons/si'
 import { event as gaEvent } from '@/lib/gtag'
 import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
@@ -21,7 +23,7 @@ import { getDailyLeaderboard } from '@/lib/getLeaderboard'
 type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
 
-const MILESTONES = [5, 12, 21, 32] // you can extend this
+const MILESTONES = [5, 12, 21, 32] // add more if you like
 const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
 
 export default function Page() {
@@ -39,20 +41,17 @@ export default function Page() {
 
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
 
-  // scramble
+  // scramble logic
   const [scramblesUsed, setScramblesUsed] = useState(0)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  // ripple toggle
-  const [rippleKey, setRippleKey] = useState(0)
-
+  /* ---------- init ---------- */
   useEffect(() => {
     uidRef.current = getUserId()
-    const stored = typeof window !== 'undefined'
-      ? localStorage.getItem('stackle_name')
-      : null
+    const stored =
+      typeof window !== 'undefined' ? localStorage.getItem('stackle_name') : null
     if (stored) setName(stored)
   }, [])
 
@@ -112,14 +111,22 @@ export default function Page() {
     if (Math.abs(lenA - lenB) > 1) return false
     if (lenA > lenB) return isOneEditAway(b, a)
 
-    let i = 0, j = 0, edits = 0
+    let i = 0,
+      j = 0,
+      edits = 0
     while (i < lenA && j < lenB) {
       if (a[i] === b[j]) {
-        i++; j++
+        i++
+        j++
       } else {
         edits++
         if (edits > 1) return false
-        if (lenA === lenB) { i++; j++ } else { j++ }
+        if (lenA === lenB) {
+          i++
+          j++
+        } else {
+          j++
+        }
       }
     }
     if (j < lenB || i < lenA) edits++
@@ -152,12 +159,22 @@ export default function Page() {
       if (navigator.vibrate) navigator.vibrate(15)
       if (wordsStacked > 0 && wordsStacked % 5 === 0) burst()
 
-      // pop animation trigger
       setSendSpin(true)
       setTimeout(() => setSendSpin(false), 350)
 
-      // ripple list
-      setRippleKey((k) => k + 1)
+      // light ripple on old tiles using Web Animations API
+      const items = document.querySelectorAll('.stack-item')
+      items.forEach((el, idx) => {
+        if (idx === 0) return
+        el.animate(
+          [
+            { transform: 'translateY(0px)' },
+            { transform: 'translateY(6px)' },
+            { transform: 'translateY(0px)' },
+          ],
+          { duration: 250, delay: idx * 15 }
+        )
+      })
     } else {
       gaEvent('invalid_move', { attempted: w, from: seed, mode })
       alert('Invalid move! Must be exactly one edit away.')
@@ -224,14 +241,15 @@ export default function Page() {
   }
 
   /* ---------- scramble ---------- */
-  const tokensEarned = MILESTONES.filter((m) => Math.max(stack.length - 1, 0) >= m).length
+  const tokensEarned = MILESTONES.filter(
+    (m) => Math.max(stack.length - 1, 0) >= m
+  ).length
   const tokensAvailable = tokensEarned - scramblesUsed
 
   const handleScramble = () => {
     if (tokensAvailable <= 0) return
     const list = dictionary.length ? dictionary : FALLBACK_SEEDS
     let newSeed = list[Math.floor(Math.random() * list.length)]
-    // avoid immediate duplicate
     while (stack.includes(newSeed)) {
       newSeed = list[Math.floor(Math.random() * list.length)]
     }
@@ -242,18 +260,20 @@ export default function Page() {
   }
 
   /* ---------- animation variants ---------- */
-  const popVariants = {
-    initial: { scale: 0.5, y: -40, opacity: 0 },
-    animate: { scale: 1, y: 0, opacity: 1, transition: { type: 'spring', stiffness: 500, damping: 25 } },
-  }
-
-  const oldItemVariants = {
-    ripple: { y: [0, 6, 0], transition: { duration: 0.25 } },
+  const popVariants: Variants = {
+    hidden: { scale: 0.5, y: -40, opacity: 0 },
+    show: {
+      scale: 1,
+      y: 0,
+      opacity: 1,
+      transition: { type: 'spring', stiffness: 500, damping: 25 },
+    },
   }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
+        {/* HOME */}
         {screen === 'home' && (
           <motion.div
             key="home"
@@ -264,9 +284,8 @@ export default function Page() {
             className="w-full max-w-md p-6 pt-16 text-center space-y-6 relative"
           >
             <h1 className="text-3xl font-bold mb-4 text-[#334155]">Stackle Word</h1>
-            <p className="text-sm text-gray-600 mb-6">
-              Choose a mode to start playing.
-            </p>
+            <p className="text-sm text-gray-600 mb-6">Choose a mode to start playing.</p>
+
             <div className="space-y-3">
               <button
                 onClick={() => goMode('endless')}
@@ -296,12 +315,13 @@ export default function Page() {
               rel="noopener noreferrer"
               className="absolute left-3 bottom-3 flex items-center space-x-1 text-xs text-[#334155]"
             >
-              <FaVenmo />
+              <SiVenmo className="w-3.5 h-3.5" />
               <span>@Nuiche 🕺</span>
             </a>
           </motion.div>
         )}
 
+        {/* NICKNAME */}
         {screen === 'nickname' && (
           <motion.div
             key="nickname"
@@ -312,9 +332,7 @@ export default function Page() {
             className="w-full max-w-md p-6 pt-16 text-center space-y-6"
           >
             <h2 className="text-2xl font-semibold text-[#334155]">Session Nickname</h2>
-            <p className="text-sm text-gray-600">
-              This will appear on the leaderboard.
-            </p>
+            <p className="text-sm text-gray-600">This will appear on the leaderboard.</p>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -337,6 +355,7 @@ export default function Page() {
           </motion.div>
         )}
 
+        {/* GAME */}
         {screen === 'game' && (
           <motion.div
             key="game"
@@ -345,7 +364,7 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-            {/* Sticky top */}
+            {/* Top input & seed */}
             <div className="sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-3">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
@@ -391,23 +410,11 @@ export default function Page() {
                 {stack.slice(1).map((word, i) => (
                   <motion.div
                     key={`${word}-${i}`}
-                    layout="position"
-                    initial="initial"
-                    animate="animate"
+                    layout
+                    initial="hidden"
+                    animate="show"
                     exit={{ opacity: 0, scale: 0.8 }}
                     variants={popVariants}
-                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                    onAnimationStart={() => {
-                      // trigger ripple on others
-                      const items = document.querySelectorAll('.stack-item')
-                      items.forEach((el, idx) => {
-                        if (idx === 0) return
-                        el.animate(
-                          [{ transform: 'translateY(0px)' }, { transform: 'translateY(6px)' }, { transform: 'translateY(0px)' }],
-                          { duration: 250, delay: idx * 15 }
-                        )
-                      })
-                    }}
                     className="stack-item p-4 rounded-lg shadow bg-[#10B981] text-white text-lg"
                   >
                     {word}
@@ -427,12 +434,7 @@ export default function Page() {
                 className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center"
                 aria-label="Scramble seed"
               >
-                <Image
-                  src="/icons/reset.png"
-                  alt="Scramble"
-                  width={36}
-                  height={36}
-                />
+                <Image src="/icons/reset.png" alt="Scramble" width={36} height={36} />
               </motion.button>
             )}
 
