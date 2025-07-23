@@ -2,8 +2,11 @@
 import LeaderboardClient from './LeaderboardClient';
 
 export const revalidate = 120;
-export const dynamicParams = false;
 
 export default function Page() {
-  return <LeaderboardClient />;
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 text-[#334155]">
+      <LeaderboardClient />
+    </div>
+  );
 }
