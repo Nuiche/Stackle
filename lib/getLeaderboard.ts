@@ -9,7 +9,18 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
-export async function getDailyLeaderboard(dayKey: string) {
+export type Row = {
+  name: string;
+  mode: 'daily' | 'endless';
+  score: number;
+  seed?: string;
+  startSeed?: string;
+  endSeed?: string;
+  dayKey?: string;
+  createdAt: number;
+};
+
+export async function getDailyLeaderboard(dayKey: string): Promise<Row[]> {
   const ref = collection(db, 'scores');
   const q = query(
     ref,
@@ -17,9 +28,32 @@ export async function getDailyLeaderboard(dayKey: string) {
     where('dayKey', '==', dayKey),
     orderBy('score', 'desc'),
     orderBy('createdAt', 'asc'),
-    limit(15)               // <-- cap at 15
+    limit(15)
   );
-
   const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data());
+  return snap.docs.map((d) => d.data() as Row);
+}
+
+export async function getEndlessLatest(): Promise<Row[]> {
+  const ref = collection(db, 'scores');
+  const q = query(
+    ref,
+    where('mode', '==', 'endless'),
+    orderBy('createdAt', 'desc'),
+    limit(20)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as Row);
+}
+
+export async function getAllTime(): Promise<Row[]> {
+  const ref = collection(db, 'scores');
+  const q = query(
+    ref,
+    orderBy('score', 'desc'),
+    orderBy('createdAt', 'asc'),
+    limit(20)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as Row);
 }
