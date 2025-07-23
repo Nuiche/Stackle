@@ -2,32 +2,43 @@
 import React, { useEffect, useState } from 'react';
 
 type Props = {
-  open: boolean;              // you pass this from page.tsx
-  imageUrl: string;           // same
+  open: boolean;
+  imageUrl: string;
   onClose: () => void;
 };
 
 export default function ShareModal({ open, imageUrl, onClose }: Props) {
-  const [src, setSrc] = useState(imageUrl);
+  const [src, setSrc] = useState<string>('');
   const [err, setErr] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // keep src in sync
+  // When opened or URL changes, fetch -> blob -> objectURL
   useEffect(() => {
-    setSrc(imageUrl);
-    setErr(false);
-  }, [imageUrl]);
-
-  if (!open) return null; // just don’t render when closed
-
-  async function retryFetch() {
-    try {
-      const blob = await fetch(imageUrl, { cache: 'no-store' }).then(r => r.blob());
-      setSrc(URL.createObjectURL(blob));
+    if (!open || !imageUrl) return;
+    let revoked = false;
+    (async () => {
+      setLoading(true);
       setErr(false);
-    } catch {
-      setErr(true);
-    }
-  }
+      try {
+        const res = await fetch(imageUrl, { cache: 'no-store' });
+        if (!res.ok) throw new Error('bad status');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        if (!revoked) setSrc(url);
+      } catch {
+        if (!revoked) setErr(true);
+      } finally {
+        if (!revoked) setLoading(false);
+      }
+    })();
+    return () => {
+      revoked = true;
+      if (src) URL.revokeObjectURL(src);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, imageUrl]);
+
+  if (!open) return null;
 
   async function handleCopy() {
     try {
@@ -35,9 +46,9 @@ export default function ShareModal({ open, imageUrl, onClose }: Props) {
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type]: blob }),
       ]);
-      alert('Copied to clipboard!');
+      alert('Copied!');
     } catch {
-      alert('Copy failed, try Download.');
+      alert('Copy failed. Try Download.');
     }
   }
 
@@ -61,14 +72,15 @@ export default function ShareModal({ open, imageUrl, onClose }: Props) {
         <h2 className="text-2xl font-semibold text-[#334155] mb-4">Share Card</h2>
 
         <div className="border rounded-lg overflow-hidden mb-4 flex items-center justify-center h-48 bg-gray-100">
-          {!err ? (
+          {loading && <div className="text-gray-500 text-sm">Generating…</div>}
+          {!loading && !err && src && (
             <img
               src={src}
               alt="share"
               className="max-h-full max-w-full object-contain"
-              onError={retryFetch}
             />
-          ) : (
+          )}
+          {!loading && err && (
             <div className="text-red-500 text-sm">
               Failed to load image.
               <br />
@@ -88,12 +100,14 @@ export default function ShareModal({ open, imageUrl, onClose }: Props) {
           <button
             onClick={handleCopy}
             className="px-5 py-3 rounded-lg bg-[#3BB2F6] text-white font-medium"
+            disabled={err || loading || !src}
           >
             Copy
           </button>
           <button
             onClick={handleDownload}
             className="px-5 py-3 rounded-lg bg-[#10B981] text-white font-medium"
+            disabled={err || loading || !src}
           >
             Download
           </button>
