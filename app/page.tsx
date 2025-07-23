@@ -263,10 +263,6 @@ export default function Page() {
               </div>
             </motion.div>
 
-            <motion.div variants={homeChild} className="absolute left-3 bottom-3 text-[#334155]">
-              <span className="block text-sm font-semibold">@Nuiche</span>
-              <span className="uppercase tracking-wider opacity-70 text-[10px]">VENMO</span>
-            </motion.div>
           </motion.div>
         )}
 
