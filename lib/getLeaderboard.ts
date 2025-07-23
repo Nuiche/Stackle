@@ -13,8 +13,8 @@ export type Row = {
   name: string;
   mode: 'daily' | 'endless';
   score: number;
-  seed?: string;
-  startSeed?: string;
+  seed?: string;        // legacy single seed (keep for old rows)
+  startSeed?: string;   // new fields
   endSeed?: string;
   dayKey?: string;
   createdAt: number;
