@@ -1,11 +1,9 @@
 // app/leaderboard/page.tsx
-import dynamic from 'next/dynamic';
+import LeaderboardClient from './LeaderboardClient';
 
-export const dynamicParams = false;
 export const revalidate = 120;
-
-const Client = dynamic(() => import('./LeaderboardClient'), { ssr: false });
+export const dynamicParams = false;
 
 export default function Page() {
-  return <Client />;
+  return <LeaderboardClient />;
 }
