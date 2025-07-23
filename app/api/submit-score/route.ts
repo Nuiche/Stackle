@@ -1,11 +1,28 @@
-// app/api/submit-score/route.ts
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { saveScore } from '@/lib/saveScore'
 
+export const dynamic = 'force-dynamic' // allow revalidatePath in prod
+
+type Body = {
+  mode: 'daily' | 'endless'
+  score: number
+  name: string
+  seed: string
+}
+
 export async function POST(req: Request) {
-  const body = await req.json()
-  const res = await saveScore(body)
-  if (res.ok) revalidatePath('/leaderboard')
-  return NextResponse.json(res)
+  try {
+    const body: Body = await req.json()
+    await saveScore(body)
+    // Bust leaderboard cache
+    revalidatePath('/leaderboard')
+    return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    console.error('submit-score error', err)
+    return NextResponse.json(
+      { ok: false, error: err?.message ?? 'unknown error' },
+      { status: 500 }
+    )
+  }
 }
