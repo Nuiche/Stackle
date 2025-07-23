@@ -28,14 +28,14 @@ export default async function LeaderboardPage() {
     <section className="mt-8">
       <h2 className="text-2xl font-semibold text-[#334155] mb-3">{title}</h2>
       {rows.length === 0 && <p className="text-sm text-gray-500">No scores yet.</p>}
-      <div className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+      <div className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden bg-white">
         {rows.map((r, i) => (
           <div
             key={r.id}
             className={`grid grid-cols-[40px_1fr_40px] px-3 py-2 text-base ${podiumBg(i)}`}
           >
             <span className="text-[#334155] font-medium">#{i + 1}</span>
-            <span className="truncate px-2">{(r.name && r.name.trim()) || 'Anon'}</span>
+            <span className="truncate px-2 text-[#334155]">{(r.name && r.name.trim()) || 'Anon'}</span>
             <span className="text-right font-semibold text-[#334155]">{r.score}</span>
           </div>
         ))}

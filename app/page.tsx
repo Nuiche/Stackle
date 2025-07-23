@@ -191,13 +191,24 @@ export default function Page() {
     }
   }
   const homeParent: Variants = {
-    hidden: { opacity: 0, y: -40 },
-    show: { opacity: 1, y: 0, transition: { staggerChildren: 0.25, delayChildren: 0.4 } }
+  hidden: { opacity: 0, y: -60 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      delayChildren: 0.3,   // first pause
+      staggerChildren: 0.55 // slower, noticeable gap
+    }
   }
+}
   const homeChild: Variants = {
-    hidden: { opacity: 0, y: -20 },
-    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 28 } as const }
+  hidden: { opacity: 0, y: -25 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 240, damping: 32 }
   }
+}
 
   const vkOnChar  = (c: string) => setInput(s => (s + c).toUpperCase())
   const vkOnDelete= () => setInput(s => s.slice(0, -1))
@@ -249,6 +260,7 @@ export default function Page() {
               <span className="block text-sm font-semibold">@Nuiche</span>
               <span className="uppercase tracking-wider opacity-70 text-[10px]">VENMO</span>
             </motion.div>
+
           </motion.div>
         )}
 
