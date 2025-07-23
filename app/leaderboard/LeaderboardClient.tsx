@@ -78,7 +78,8 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
       <ul>
         {rows.map((r, idx) => (
           <li
-            key={r.id}
+            key={`${r.name}-${r.createdAt ?? 0}-${idx}`}
+
             className={`flex justify-between items-center py-1 px-2 rounded-md mb-1 ${
               idx === 0
                 ? 'bg-yellow-100'
