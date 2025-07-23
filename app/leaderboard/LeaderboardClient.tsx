@@ -67,15 +67,16 @@ export default function LeaderboardClient() {
   );
 
   if (loading) {
-    return <div className="p-6 text-center text-gray-500">Loading…</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F1F5F9] text-gray-500">
+        Loading…
+      </div>
+    );
   }
 
   return (
     <main className="min-h-screen bg-[#F1F5F9] text-[#334155] p-4 pb-16">
-      <Link
-        href="/"
-        className="inline-block mb-4 underline text-[#334155]"
-      >
+      <Link href="/" className="inline-block mb-4 underline text-[#334155]">
         ← Back
       </Link>
 

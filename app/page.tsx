@@ -8,7 +8,7 @@ import React, {
   useCallback,
 } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { FaTrophy, FaPaperPlane } from 'react-icons/fa';
+import { FaTrophy, FaPaperPlane, FaShareAlt, FaListAlt } from 'react-icons/fa';
 
 import { event as gaEvent } from '@/lib/gtag';
 import { burst } from '@/lib/confetti';
@@ -22,10 +22,11 @@ type GameMode = 'daily' | 'endless';
 const MAX_LEN = 8;
 const POP_INTERVALS = [5, 12, 21, 32, 45];
 
+// ENTER left, DEL right
 const KB_ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['DEL', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'ENTER'],
+  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'],
 ];
 
 const popVariants: Variants = {
@@ -92,17 +93,20 @@ export default function Page() {
   const [submitState, setSubmitState] =
     useState<'idle' | 'saving' | 'saved'>('idle');
 
+  const [isTouch, setIsTouch] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchDictionary().then(setDict);
     const saved = localStorage.getItem('lexit_nick');
     if (saved) setNickname(saved);
+    setIsTouch(typeof window !== 'undefined' && 'ontouchstart' in window);
   }, []);
 
   useEffect(() => {
-    if (!showHome) inputRef.current?.focus();
-  }, [showHome]);
+    if (!showHome && !isTouch) inputRef.current?.focus();
+  }, [showHome, isTouch]);
 
   const startGame = async (mode: GameMode) => {
     setGameMode(mode);
@@ -147,8 +151,8 @@ export default function Page() {
     setScore((s) => s + 1);
     setInput('');
     if (POP_INTERVALS.includes(score + 1)) burst();
-    inputRef.current?.focus();
-  }, [input, seedWord, stack, score, dict]);
+    if (!isTouch) inputRef.current?.focus();
+  }, [input, seedWord, stack, score, dict, isTouch]);
 
   const onVKPress = (key: string) => {
     if (key === 'ENTER') {
@@ -179,8 +183,8 @@ export default function Page() {
         name: nickname || 'Anon',
         mode: gameMode,
         score,
-        seed: stack.at(-1) ?? seedWord, // end seed
-        startSeed: seedWord,            // start seed
+        seed: stack.at(-1) ?? seedWord, // end
+        startSeed: seedWord,            // start
         dayKey: dk,
       };
       const resp: SaveScoreResult = await saveScore(payload);
@@ -191,6 +195,22 @@ export default function Page() {
       console.error(err);
       alert('Could not save score.');
       setSubmitState('idle');
+    }
+  };
+
+  const shareSite = async () => {
+    const origin =
+      typeof window !== 'undefined' ? window.location.origin : '';
+    const text = `I scored ${score} in Lexit (${gameMode})! Try it: ${origin}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ text, url: origin, title: 'Lexit' });
+      } else {
+        await navigator.clipboard.writeText(text);
+        alert('Link copied!');
+      }
+    } catch {
+      alert('Share failed, copy manually.');
     }
   };
 
@@ -244,6 +264,11 @@ export default function Page() {
               onKeyDown={onKeyDown}
               maxLength={MAX_LEN}
               placeholder="ENTER WORD"
+              inputMode={isTouch ? 'none' : 'text'}
+              readOnly={isTouch}
+              onFocus={(e) => {
+                if (isTouch) e.currentTarget.blur();
+              }}
               className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
             />
             <button
@@ -292,7 +317,7 @@ export default function Page() {
           <div className="backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-3 space-y-2 pointer-events-auto">
             {KB_ROWS.map((row, i) => (
               <div key={i} className="flex gap-2">
-                {row.map((k) => {
+                {row.map((k, idx) => {
                   const isEnter = k === 'ENTER';
                   const isDel = k === 'DEL';
                   return (
@@ -318,6 +343,13 @@ export default function Page() {
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-3">
           <div className="bg-[#1e293b]/80 backdrop-blur-sm rounded-2xl px-4 py-3 flex gap-3 justify-between">
             <button
+              onClick={shareSite}
+              className="flex-1 py-3 rounded-lg bg-[#3BB2F6] text-white font-semibold flex items-center justify-center gap-2"
+            >
+              <FaShareAlt /> Share
+            </button>
+
+            <button
               disabled={!canSubmitScore}
               onClick={handleSaveScore}
               className={`flex-1 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 ${
@@ -332,8 +364,9 @@ export default function Page() {
 
             <a
               href="/leaderboard"
-              className="flex-1 py-3 rounded-lg bg-[#334155] text-white font-semibold flex items-center justify-center"
+              className="flex-1 py-3 rounded-lg bg-[#334155] text-white font-semibold flex items-center justify-center gap-2"
             >
+              <FaListAlt />
               Board
             </a>
           </div>
