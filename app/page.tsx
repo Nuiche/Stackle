@@ -8,7 +8,7 @@ import React, {
   useCallback,
 } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa';
+import { FaTrophy, FaPaperPlane } from 'react-icons/fa';
 
 import { event as gaEvent } from '@/lib/gtag';
 import { burst } from '@/lib/confetti';
@@ -17,7 +17,6 @@ import { dayKey as buildDayKey } from '@/lib/dayKey';
 import { titleFont } from '@/lib/fonts';
 
 import HowToModal from '@/components/HowToModal';
-import ShareModal from '@/components/ShareModal';
 
 type GameMode = 'daily' | 'endless';
 const MAX_LEN = 8;
@@ -82,8 +81,6 @@ async function fetchDictionary(): Promise<Set<string>> {
 export default function Page() {
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
-  const [showShare, setShowShare] = useState(false);
-  const [shareUrl, setShareUrl] = useState('');
 
   const [nickname, setNickname] = useState('');
   const [gameMode, setGameMode] = useState<GameMode>('endless');
@@ -182,25 +179,14 @@ export default function Page() {
         name: nickname || 'Anon',
         mode: gameMode,
         score,
-        seed: stack.at(-1) ?? seedWord,
+        seed: stack.at(-1) ?? seedWord, // end seed
+        startSeed: seedWord,            // start seed
         dayKey: dk,
       };
       const resp: SaveScoreResult = await saveScore(payload);
       if (!resp.ok) throw new Error(resp.error || 'save failed');
       setSubmitState('saved');
       gaEvent('submit_score', { score, mode: gameMode });
-
-      const params = new URLSearchParams({
-        name: payload.name,
-        score: String(score),
-        mode: gameMode,
-        words: JSON.stringify([seedWord, ...stack]),
-      });
-      if (dk) params.set('date', dk);
-      const origin =
-        typeof window !== 'undefined' ? window.location.origin : '';
-      setShareUrl(`${origin}/api/share?${params.toString()}&t=${Date.now()}`);
-      setShowShare(true);
     } catch (err) {
       console.error(err);
       alert('Could not save score.');
@@ -239,11 +225,6 @@ export default function Page() {
   return (
     <>
       <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
-      <ShareModal
-        open={showShare}
-        onClose={() => setShowShare(false)}
-        imageUrl={shareUrl}
-      />
 
       <main className="min-h-screen bg-gradient-to-b from-[#F1F5F9] to-[#D1D5DB] flex flex-col items-center pb-40 relative">
         <button
@@ -336,29 +317,6 @@ export default function Page() {
         {/* Bottom bar */}
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-3">
           <div className="bg-[#1e293b]/80 backdrop-blur-sm rounded-2xl px-4 py-3 flex gap-3 justify-between">
-            <button
-              onClick={() => {
-                const params = new URLSearchParams({
-                  name: nickname || 'Anon',
-                  score: String(score),
-                  mode: gameMode,
-                  words: JSON.stringify([seedWord, ...stack]),
-                });
-                if (gameMode === 'daily') params.set('date', buildDayKey());
-                const origin =
-                  typeof window !== 'undefined'
-                    ? window.location.origin
-                    : '';
-                setShareUrl(
-                  `${origin}/api/share?${params.toString()}&t=${Date.now()}`
-                );
-                setShowShare(true);
-              }}
-              className="flex-1 py-3 rounded-lg bg-[#3BB2F6] text-white font-semibold flex items-center justify-center gap-2"
-            >
-              <FaShareAlt /> Share
-            </button>
-
             <button
               disabled={!canSubmitScore}
               onClick={handleSaveScore}

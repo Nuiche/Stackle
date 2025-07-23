@@ -6,7 +6,8 @@ export type SaveScorePayload = {
   name: string;
   mode: 'daily' | 'endless';
   score: number;
-  seed: string;
+  seed: string;        // end seed
+  startSeed: string;   // starting seed
   dayKey?: string;
 };
 

@@ -1,4 +1,5 @@
-import { db } from './firebase'
+// lib/getLeaderboard.ts
+import { db } from './firebase';
 import {
   collection,
   query,
@@ -6,47 +7,66 @@ import {
   orderBy,
   limit,
   getDocs,
-  DocumentData
-} from 'firebase/firestore'
-
-const scoresCol = collection(db, 'scores')
+  Timestamp,
+} from 'firebase/firestore';
 
 export type Row = {
-  id: string
-  name?: string
-  score: number
-  mode?: 'daily' | 'endless'
-  dayKey?: string
-  seed?: string
-  createdAt?: any
-}
+  id: string;
+  name: string;
+  score: number;
+  mode: 'daily' | 'endless';
+  seed: string;
+  startSeed?: string;
+  dayKey?: string;
+  createdAt?: Timestamp;
+};
 
-function docsToRows(snap: Awaited<ReturnType<typeof getDocs>>): Row[] {
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as DocumentData) })) as Row[]
-}
+const scoresRef = collection(db, 'scores');
 
-export async function getDailyLeaderboard(dayKey: string, n = 20): Promise<Row[]> {
+export async function getDailyLeaderboard(dayKey: string): Promise<Row[]> {
   const q = query(
-    scoresCol,
+    scoresRef,
     where('mode', '==', 'daily'),
     where('dayKey', '==', dayKey),
     orderBy('score', 'desc'),
-    limit(n)
-  )
-  return docsToRows(await getDocs(q))
+    orderBy('createdAt', 'asc'),
+    limit(50)
+  );
+  return docsToRows(await getDocs(q));
 }
 
-export async function getEndlessTop(n = 20): Promise<Row[]> {
+export async function getEndlessLatest(): Promise<Row[]> {
   const q = query(
-    scoresCol,
+    scoresRef,
     where('mode', '==', 'endless'),
-    orderBy('score', 'desc'),
-    limit(n)
-  )
-  return docsToRows(await getDocs(q))
+    orderBy('createdAt', 'desc'),
+    limit(20)
+  );
+  return docsToRows(await getDocs(q));
 }
 
-export async function getAllTime(n = 20): Promise<Row[]> {
-  const q = query(scoresCol, orderBy('score', 'desc'), limit(n))
-  return docsToRows(await getDocs(q))
+export async function getAllTime(): Promise<Row[]> {
+  const q = query(
+    scoresRef,
+    orderBy('score', 'desc'),
+    orderBy('createdAt', 'asc'),
+    limit(50)
+  );
+  return docsToRows(await getDocs(q));
+}
+
+function docsToRows(snapshot: Awaited<ReturnType<typeof getDocs>>): Row[] {
+  return snapshot.docs.map((d) => {
+    const data = d.data() as any;
+    return {
+      id: d.id,
+      name: data.name || 'Anon',
+      score: data.score || 0,
+      mode: data.mode,
+      seed: data.seed,
+      startSeed: data.startSeed,
+      dayKey: data.dayKey,
+      createdAt: data.createdAt,
+    };
+  });
 }
