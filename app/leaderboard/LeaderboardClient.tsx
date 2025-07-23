@@ -2,10 +2,13 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getDailyLeaderboard, getEndlessLatest, getAllTime } from '@/lib/getLeaderboard'
+import {
+  getDailyLeaderboard,
+  getEndlessTop,
+  getAllTime,
+  Row
+} from '@/lib/getLeaderboard'
 import { getTotalGames } from '@/lib/getTotalGames'
-
-type Row = { id: string; name?: string; score: number }
 
 export default function LeaderboardClient() {
   const [daily, setDaily] = useState<Row[]>([])
@@ -13,6 +16,8 @@ export default function LeaderboardClient() {
   const [allTime, setAllTime] = useState<Row[]>([])
   const [total, setTotal] = useState<number>(0)
   const [err, setErr] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
   const today = new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
@@ -20,14 +25,19 @@ export default function LeaderboardClient() {
       try {
         const [d, e, a, t] = await Promise.all([
           getDailyLeaderboard(today, 20),
-          getEndlessLatest(20),
+          getEndlessTop(20),
           getAllTime(20),
-          getTotalGames(),
+          getTotalGames()
         ])
-        setDaily(d); setEndless(e); setAllTime(a); setTotal(t)
+        setDaily(d)
+        setEndless(e)
+        setAllTime(a)
+        setTotal(t)
       } catch (e: any) {
         console.error('Leaderboard load error', e)
         setErr('Failed to load leaderboard.')
+      } finally {
+        setLoading(false)
       }
     })()
   }, [today])
@@ -56,6 +66,14 @@ export default function LeaderboardClient() {
       </div>
     </section>
   )
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#F1F5F9] px-4 py-6 flex items-center justify-center">
+        <p className="text-gray-500">Loading…</p>
+      </main>
+    )
+  }
 
   if (err) {
     return (
