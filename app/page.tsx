@@ -1,12 +1,7 @@
 // app/page.tsx
 'use client'
 
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  KeyboardEvent,
-} from 'react'
+import React, { useState, useEffect, useRef, KeyboardEvent } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -14,6 +9,7 @@ import type { Variants } from 'framer-motion'
 import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
 import { SiVenmo } from 'react-icons/si'
 import VirtualKeyboard from '@/components/VirtualKeyboard'
+import HowToModal from '@/components/HowToModal'
 import { event as gaEvent } from '@/lib/gtag'
 import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
@@ -43,9 +39,12 @@ export default function Page() {
 
   const [scramblesUsed, setScramblesUsed] = useState(0)
 
+  const [showHelp, setShowHelp] = useState(false)
+
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
+  /* ---------- init ---------- */
   useEffect(() => {
     uidRef.current = getUserId()
     const stored = typeof window !== 'undefined' ? localStorage.getItem('stackle_name') : null
@@ -67,9 +66,7 @@ export default function Page() {
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
     getDailyLeaderboard(today, 1)
-      .then((rows) => {
-        if (rows.length) setTopDaily({ name: rows[0].name, score: rows[0].score })
-      })
+      .then((rows) => rows.length && setTopDaily({ name: rows[0].name, score: rows[0].score }))
       .catch(() => {})
   }, [])
 
@@ -92,12 +89,19 @@ export default function Page() {
       }
       setInput('')
       setScramblesUsed(0)
+      // show help once per session
+      const seen = localStorage.getItem('stackle_help_seen')
+      if (!seen) {
+        setShowHelp(true)
+        localStorage.setItem('stackle_help_seen', '1')
+      }
       setTimeout(() => inputRef.current?.blur(), 0)
     } finally {
       setLoadingSeed(false)
     }
   }
 
+  /* ---------- validate one edit ---------- */
   function isOneEditAway(a: string, b: string): boolean {
     a = a.toUpperCase()
     b = b.toUpperCase()
@@ -141,8 +145,8 @@ export default function Page() {
       setSendSpin(true)
       setTimeout(() => setSendSpin(false), 350)
 
-      const items = document.querySelectorAll('.stack-item')
-      items.forEach((el, idx) => {
+      // ripple
+      document.querySelectorAll('.stack-item').forEach((el, idx) => {
         if (idx === 0) return
         el.animate(
           [
@@ -159,7 +163,7 @@ export default function Page() {
     }
   }
 
-  // Desktop keyboard support
+  // desktop physical keyboard
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') submitWord()
     if (e.key === 'Backspace') setInput((s) => s.slice(0, -1))
@@ -235,22 +239,40 @@ export default function Page() {
   const vkOnDelete = () => setInput((s) => s.slice(0, -1))
   const vkOnEnter = () => submitWord()
 
+  /* Home screen trickle animation */
+  const homeParent = {
+    hidden: { opacity: 0, y: -40 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { staggerChildren: 0.12, delayChildren: 0.1 },
+    },
+  }
+  const homeChild = {
+    hidden: { opacity: 0, y: -20 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 400, damping: 20 } },
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
         {screen === 'home' && (
           <motion.div
             key="home"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
+            variants={homeParent}
+            initial="hidden"
+            animate="show"
             exit={{ opacity: 0, y: -30 }}
-            transition={{ duration: 0.25 }}
             className="w-full max-w-md p-6 pt-16 text-center space-y-6 relative"
           >
-            <h1 className="text-3xl font-bold mb-2 text-[#334155]">Stackle Word</h1>
-            <p className="text-sm italic text-gray-600 mb-6">A little goes a long way</p>
+            <motion.h1 variants={homeChild} className="text-3xl font-bold mb-2 text-[#334155]">
+              Stackle Word
+            </motion.h1>
+            <motion.p variants={homeChild} className="text-sm italic text-gray-600 mb-6">
+              A little goes a long way
+            </motion.p>
 
-            <div className="space-y-3">
+            <motion.div variants={homeChild} className="space-y-3">
               <button
                 onClick={() => goMode('endless')}
                 className="w-full py-3 rounded-lg bg-[#3BB2F6] text-white text-lg"
@@ -270,10 +292,13 @@ export default function Page() {
                   </p>
                 )}
               </div>
-            </div>
+            </motion.div>
 
-            {/* Venmo block bottom-left */}
-            <div className="absolute left-3 bottom-3 text-[#334155] flex flex-col items-start space-y-1">
+            {/* Venmo block */}
+            <motion.div
+              variants={homeChild}
+              className="absolute left-3 bottom-3 text-[#334155] flex flex-col items-start space-y-1"
+            >
               <span className="text-sm font-semibold">@Nuiche 🕺</span>
               <a
                 href="https://venmo.com/u/Nuiche"
@@ -284,7 +309,7 @@ export default function Page() {
                 <SiVenmo className="w-3.5 h-3.5" />
                 <span>VENMO</span>
               </a>
-            </div>
+            </motion.div>
           </motion.div>
         )}
 
@@ -329,7 +354,7 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-            {/* Scramble token button (top-left) */}
+            {/* Scramble button */}
             {tokensAvailable > 0 && (
               <motion.button
                 initial={{ scale: 0, opacity: 0 }}
@@ -344,8 +369,8 @@ export default function Page() {
               </motion.button>
             )}
 
-            {/* Input area (sticky but pushed down) */}
-            <div className="sticky top-[12vh] z-10 bg-transparent backdrop-blur-sm pb-3">
+            {/* Input & Seed in center-ish */}
+            <div className="sticky top-[28vh] z-10 bg-transparent backdrop-blur-sm pb-3">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
                   <input
@@ -385,7 +410,7 @@ export default function Page() {
             </div>
 
             {/* Past words */}
-            <div className="mt-2 space-y-2 pb-44 overflow-hidden">
+            <div className="mt-4 space-y-3 pb-48 overflow-visible">
               <AnimatePresence initial={false}>
                 {stack.slice(1).map((word, i) => (
                   <motion.div
@@ -403,7 +428,7 @@ export default function Page() {
               </AnimatePresence>
             </div>
 
-            {/* Virtual keyboard */}
+            {/* VK */}
             <VirtualKeyboard
               onChar={vkOnChar}
               onDelete={vkOnDelete}
@@ -435,6 +460,9 @@ export default function Page() {
                 </Link>
               </div>
             </div>
+
+            {/* Help modal */}
+            <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
           </motion.div>
         )}
       </AnimatePresence>
