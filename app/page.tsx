@@ -11,7 +11,7 @@ import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { FaShareAlt, FaTrophy, FaListUl, FaPaperPlane } from 'react-icons/fa';
 
 import { burst } from '@/lib/confetti';
-import { event as gaEvent } from '@/lib/gtag';
+import { gaEvent } from '@/lib/gtag'
 import { saveScore, SaveScoreResult, GameMode } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
 import HowToModal from '@/components/HowToModal';
