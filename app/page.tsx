@@ -193,9 +193,9 @@ export default function Page() {
       })
       if (dayKey) params.set('date', dayKey)
 
-      const origin = typeof window !== 'undefined' ? window.location.origin : ''
-      setShareUrl(`${origin}/api/share?${params.toString()}`)
-      setShowShare(true)
+     const origin = typeof window !== 'undefined' ? window.location.origin : ''
+     setShareUrl(`${origin}/api/share?${params.toString()}`)
+     setShowShare(true)
 
       alert('Score submitted!')
     } catch (e) {
