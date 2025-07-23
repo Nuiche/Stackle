@@ -22,6 +22,8 @@ const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
 const HELP_KEY = 'lexit_help_seen_v1'
 const MAX_LEN = 8
 
+
+
 export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
   const [mode, setMode] = useState<GameMode>('endless')
@@ -194,8 +196,8 @@ export default function Page() {
       if (dayKey) params.set('date', dayKey)
 
      const origin = typeof window !== 'undefined' ? window.location.origin : ''
-     setShareUrl(`${origin}/api/share?${params.toString()}`)
-     setShowShare(true)
+      setShareUrl(`${origin}/api/share?${params.toString()}&t=${Date.now()}`)
+      setShowShare(true)
 
       alert('Score submitted!')
     } catch (e) {

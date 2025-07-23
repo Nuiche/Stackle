@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
-export const dynamic = 'force-dynamic' // avoid stale cache
+export const dynamic = 'force-dynamic'
 
 function qp(sp: URLSearchParams, k: string, d = '') {
   const v = sp.get(k)
@@ -9,16 +9,17 @@ function qp(sp: URLSearchParams, k: string, d = '') {
 }
 
 export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url)
-    // Debug helper: /api/share?debug=1 just returns JSON
-    if (searchParams.get('debug') === '1') {
-      return new Response(
-        JSON.stringify(Object.fromEntries(searchParams.entries()), null, 2),
-        { headers: { 'content-type': 'application/json' } }
-      )
-    }
+  const { searchParams } = new URL(req.url)
 
+  // Debug helpers
+  if (searchParams.get('debug') === '1') {
+    return new Response(
+      JSON.stringify(Object.fromEntries(searchParams.entries()), null, 2),
+      { headers: { 'content-type': 'application/json' } }
+    )
+  }
+
+  try {
     const name  = qp(searchParams, 'name', 'Anon')
     const score = qp(searchParams, 'score', '0')
     const mode  = qp(searchParams, 'mode', 'endless')
@@ -75,7 +76,11 @@ export async function GET(req: Request) {
       ),
       { width: 1200, height: 630 }
     )
-  } catch (e) {
-    return new Response('Error rendering image', { status: 500 })
+  } catch (e: any) {
+    // Return error so you SEE it in the browser
+    return new Response(
+      JSON.stringify({ error: e?.message ?? 'unknown', stack: e?.stack }),
+      { status: 500, headers: { 'content-type': 'application/json' } }
+    )
   }
 }

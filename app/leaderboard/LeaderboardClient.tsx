@@ -45,11 +45,11 @@ export default function LeaderboardClient() {
 
   const podiumBg = (i: number) =>
     i === 0 ? 'bg-[#FFD70033]'
-      : i === 1 ? 'bg-[#C0C0C033]'
-      : i === 2 ? 'bg-[#CD7F3233]'
-      : ''
+    : i === 1 ? 'bg-[#C0C0C033]'
+    : i === 2 ? 'bg-[#CD7F3233]'
+    : ''
 
-  // NAME  |  SEED – SCORE
+  // NAME | [seed chip] score
   const renderRow = (r: Row, i: number) => (
     <div
       key={r.id}
@@ -59,8 +59,13 @@ export default function LeaderboardClient() {
       <span className="truncate px-2 text-[#334155]">
         {(r.name && r.name.trim()) || 'Anon'}
       </span>
-      <span className="text-right font-semibold text-[#334155]">
-        {(r.seed ? `${r.seed} – ` : '')}{r.score}
+      <span className="flex items-center justify-end gap-2">
+        {r.seed && (
+          <span className="inline-block bg-[#334155] text-white px-2 py-0.5 rounded-md tracking-widest text-xs leading-none">
+            {r.seed}
+          </span>
+        )}
+        <span className="text-right font-semibold text-[#334155]">{r.score}</span>
       </span>
     </div>
   )
