@@ -40,6 +40,7 @@ export default function Page() {
   const [showShare, setShowShare] = useState(false)
   const [shareUrl, setShareUrl] = useState('')
   const [dayKey, setDayKey] = useState('')
+  const [initialSeed, setInitialSeed] = useState('')
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
@@ -85,10 +86,13 @@ export default function Page() {
       if (mode === 'daily') {
         const d = await (await fetch('/api/seed')).json()
         setStack([d.seed])
+        setInitialSeed(d.seed)
         setDayKey(d.dayKey || '')
       } else {
         const list = dictionary.length ? dictionary : FALLBACK_SEEDS
-        setStack([list[Math.floor(Math.random() * list.length)]])
+        const seedPick = list[Math.floor(Math.random() * list.length)]
+        setStack([seedPick])
+        setInitialSeed(seedPick)
         setDayKey('')
       }
       setInput('')
@@ -179,10 +183,9 @@ export default function Page() {
   const handleSubmitScore = async () => {
     setIsSaving(true)
     try {
-      await saveScore({ mode, score, name })
+      await saveScore({ mode, score, name, seed: initialSeed })
       setSubmittedScore(true)
 
-      // Build share card URL
       const params = new URLSearchParams({
         name,
         score: String(score),
@@ -229,10 +232,7 @@ export default function Page() {
     show: {
       opacity: 1,
       y: 0,
-      transition: {
-        delayChildren: 0.3,
-        staggerChildren: 0.55
-      }
+      transition: { delayChildren: 0.3, staggerChildren: 0.55 }
     }
   }
   const homeChild: Variants = {

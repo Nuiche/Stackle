@@ -1,6 +1,8 @@
 import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
+export const size = { width: 1200, height: 630 }
+export const contentType = 'image/png'
 
 function q(searchParams, key, fallback = '') {
   const v = searchParams.get(key)
@@ -35,8 +37,8 @@ export function GET(req) {
           fontFamily: 'system-ui, sans-serif'
         }}
       >
-        <div style={{ fontSize: 90, fontWeight: 700, color: soft }}>Lexit</div>
-        <div style={{ marginTop: 12, fontSize: 36, color: soft, opacity: 0.9 }}>
+        <div style={{ fontSize: 90, fontWeight: 700 }}>Lexit</div>
+        <div style={{ marginTop: 12, fontSize: 36, opacity: 0.9 }}>
           {title}{date ? ` – ${date}` : ''}
         </div>
 
@@ -64,6 +66,6 @@ export function GET(req) {
         </div>
       </div>
     ),
-    { width: 1200, height: 630 }
+    size
   )
 }

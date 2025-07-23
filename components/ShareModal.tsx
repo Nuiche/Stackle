@@ -10,6 +10,7 @@ type Props = {
 
 export default function ShareModal({ open, onClose, imageUrl }: Props) {
   const [downloading, setDownloading] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   if (!open) return null
 
@@ -17,7 +18,7 @@ export default function ShareModal({ open, onClose, imageUrl }: Props) {
     try {
       const res = await fetch(imageUrl)
       const blob = await res.blob()
-      // @ts-ignore - ClipboardItem not in TS lib yet in some configs
+      // @ts-ignore ClipboardItem may not be in TS lib
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
       alert('Image copied to clipboard!')
     } catch {
@@ -62,9 +63,15 @@ export default function ShareModal({ open, onClose, imageUrl }: Props) {
           Share Card
         </h2>
 
-        <div className="w-full border rounded overflow-hidden mb-4">
+        <div className="w-full border rounded overflow-hidden mb-4 min-h-[120px] flex items-center justify-center bg-gray-50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt="Share card" className="w-full h-auto" />
+          <img
+            src={imageUrl}
+            alt="Share card"
+            className={`w-full h-auto ${loaded ? '' : 'hidden'}`}
+            onLoad={() => setLoaded(true)}
+          />
+          {!loaded && <div className="text-sm text-gray-500">Generating…</div>}
         </div>
 
         <div className="flex gap-2">
