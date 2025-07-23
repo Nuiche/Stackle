@@ -17,7 +17,7 @@ type Screen = 'home' | 'nickname' | 'game'
 
 const MILESTONES = [5, 12, 21, 32, 45]
 const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
-const HELP_KEY = 'stackle_help_seen_v2'
+const HELP_KEY = 'lexit_help_seen_v1'
 
 export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
@@ -39,7 +39,10 @@ export default function Page() {
 
   useEffect(() => {
     uidRef.current = getUserId()
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('stackle_name') : null
+    const stored =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('stackle_name') || localStorage.getItem('lexit_name')
+        : null
     if (stored) setName(stored)
   }, [])
 
@@ -122,7 +125,8 @@ export default function Page() {
     setStack(newStack)
     setInput('')
     const newScore = Math.max(newStack.length - 1, 0)
-    localStorage.setItem('stackle_last_score', String(newScore))
+    localStorage.setItem('lexit_last_score', String(newScore))
+    localStorage.setItem('lexit_name', name)
     if (navigator.vibrate) navigator.vibrate(15)
     if (newScore > 0 && newScore % 5 === 0) burst()
     setSendSpin(true); setTimeout(() => setSendSpin(false), 350)
@@ -143,14 +147,14 @@ export default function Page() {
   const saveNameAndStart = () => {
     const clean = name.trim()
     if (clean.length < 2) { alert('Please enter at least 2 characters.'); return }
-    localStorage.setItem('stackle_name', clean)
+    localStorage.setItem('lexit_name', clean)
     setScreen('game')
   }
 
   const handleShare = () => {
-    const txt = `I stacked ${score} words in Stackle Word!`
+    const txt = `I stacked ${score} words in Lexit!`
     if (navigator.share) {
-      navigator.share({ title: 'My Stackle Word Score', text: txt, url: window.location.href }).catch(() => {})
+      navigator.share({ title: 'My Lexit Score', text: txt, url: window.location.href }).catch(() => {})
     } else {
       navigator.clipboard.writeText(`${txt} Play: ${window.location.href}`)
       alert('Copied to clipboard!')
@@ -183,6 +187,27 @@ export default function Page() {
     burst()
   }
 
+  // intro pacing slower
+  const homeParent: Variants = {
+    hidden: { opacity: 0, y: -60 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        delayChildren: 0.3,
+        staggerChildren: 0.55
+      }
+    }
+  }
+  const homeChild: Variants = {
+    hidden: { opacity: 0, y: -25 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { type: 'spring', stiffness: 240, damping: 32 }
+    }
+  }
+
   const popVariants: Variants = {
     hidden: { opacity: 0, scale: 0.9, y: 12 },
     show: {
@@ -190,25 +215,6 @@ export default function Page() {
       transition: { type: 'spring', stiffness: 400, damping: 25 } as const
     }
   }
-  const homeParent: Variants = {
-  hidden: { opacity: 0, y: -60 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      delayChildren: 0.3,   // first pause
-      staggerChildren: 0.55 // slower, noticeable gap
-    }
-  }
-}
-  const homeChild: Variants = {
-  hidden: { opacity: 0, y: -25 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring', stiffness: 240, damping: 32 }
-  }
-}
 
   const vkOnChar  = (c: string) => setInput(s => (s + c).toUpperCase())
   const vkOnDelete= () => setInput(s => s.slice(0, -1))
@@ -218,6 +224,7 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#FAFAFA] to-[#CFCFCF] flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
+        {/* HOME */}
         {screen === 'home' && (
           <motion.div
             key="home"
@@ -228,7 +235,7 @@ export default function Page() {
             className="w-full max-w-md p-6 pt-16 text-center space-y-6 relative"
           >
             <motion.h1 variants={homeChild} className="text-3xl font-bold mb-2 text-[#334155]">
-              Stackle Word
+              Lexit
             </motion.h1>
             <motion.p variants={homeChild} className="text-sm italic text-gray-600 mb-6">
               A little goes a long way
@@ -260,10 +267,10 @@ export default function Page() {
               <span className="block text-sm font-semibold">@Nuiche</span>
               <span className="uppercase tracking-wider opacity-70 text-[10px]">VENMO</span>
             </motion.div>
-
           </motion.div>
         )}
 
+        {/* NICKNAME */}
         {screen === 'nickname' && (
           <motion.div
             key="nickname"
@@ -294,6 +301,7 @@ export default function Page() {
           </motion.div>
         )}
 
+        {/* GAME */}
         {screen === 'game' && (
           <motion.div
             key="game"

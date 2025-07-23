@@ -1,46 +1,35 @@
 // app/layout.tsx
-import '../styles/globals.css'
-import './globals.css' 
-import Script from 'next/script'
-import type { ReactNode } from 'react'
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
 
-export const metadata = {
-  title: 'Stackle Word',
-  description: 'Daily & Endless word-stacking game',
+export const metadata: Metadata = {
+  metadataBase: new URL('https://lexit.uno'),
+  title: 'Lexit',
+  description: 'Change one letter. Stack your way to the top.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    url: 'https://lexit.uno',
+    title: 'Lexit',
+    description: 'Change one letter. Stack your way to the top.',
+    siteName: 'Lexit',
+    images: ['/og-image.png'],
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Lexit',
+    description: 'Change one letter. Stack your way to the top.',
+    images: ['/og-image.png']
+  }
 }
 
-export const viewport = {
-  themeColor: '#3B82F6',
+export const viewport: Viewport = {
+  themeColor: '#3B82F6'
 }
 
-export default function RootLayout({ children }: { children: ReactNode }) {
-  const gaId = process.env.NEXT_PUBLIC_GA_ID
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icons/apple-icon-180.png" />
-        <meta name="theme-color" content="#3B82F6" />
-
-        {gaId && (
-          <>
-            <Script
-              id="ga-loader"
-              strategy="afterInteractive"
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-            />
-            <Script id="ga-init" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${gaId}');
-              `}
-            </Script>
-          </>
-        )}
-      </head>
       <body>{children}</body>
     </html>
   )
