@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Variants } from 'framer-motion'
 import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
 import { SiVenmo } from 'react-icons/si'
+import VirtualKeyboard from '@/components/VirtualKeyboard'
 import { event as gaEvent } from '@/lib/gtag'
 import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
@@ -42,6 +43,7 @@ export default function Page() {
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
 
   const [scramblesUsed, setScramblesUsed] = useState(0)
+  const [showVK, setShowVK] = useState(true) // always show for now
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
@@ -49,9 +51,7 @@ export default function Page() {
   /* ---------- init ---------- */
   useEffect(() => {
     uidRef.current = getUserId()
-    const stored = typeof window !== 'undefined'
-      ? localStorage.getItem('stackle_name')
-      : null
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('stackle_name') : null
     if (stored) setName(stored)
   }, [])
 
@@ -95,7 +95,7 @@ export default function Page() {
       }
       setInput('')
       setScramblesUsed(0)
-      setTimeout(() => inputRef.current?.focus(), 0)
+      setTimeout(() => inputRef.current?.blur(), 0) // blur to avoid OS keyboard
     } finally {
       setLoadingSeed(false)
     }
@@ -113,9 +113,8 @@ export default function Page() {
 
     let i = 0, j = 0, edits = 0
     while (i < lenA && j < lenB) {
-      if (a[i] === b[j]) {
-        i++; j++
-      } else {
+      if (a[i] === b[j]) { i++; j++ }
+      else {
         edits++
         if (edits > 1) return false
         if (lenA === lenB) { i++; j++ } else { j++ }
@@ -125,19 +124,11 @@ export default function Page() {
     return edits === 1
   }
 
-  const handleSubmit = () => {
+  const submitWord = () => {
     const w = input.trim().toUpperCase()
     if (!w) return
-
-    if (stack.includes(w)) {
-      alert('You already used that word.')
-      return
-    }
-
-    if (!dictSet.current.has(w)) {
-      alert('Not a valid English word.')
-      return
-    }
+    if (stack.includes(w)) { alert('You already used that word.'); return }
+    if (!dictSet.current.has(w)) { alert('Not a valid English word.'); return }
 
     const seed = stack[0]
     if (isOneEditAway(seed, w)) {
@@ -154,14 +145,13 @@ export default function Page() {
       setSendSpin(true)
       setTimeout(() => setSendSpin(false), 350)
 
-      // subtle ripple on existing tiles
       const items = document.querySelectorAll('.stack-item')
       items.forEach((el, idx) => {
         if (idx === 0) return
         el.animate(
           [
             { transform: 'translateY(0px)' },
-            { transform: 'translateY(3px)' },   // ↓ was 6px
+            { transform: 'translateY(3px)' },
             { transform: 'translateY(0px)' },
           ],
           { duration: 220, delay: idx * 12 }
@@ -171,14 +161,13 @@ export default function Page() {
       gaEvent('invalid_move', { attempted: w, from: seed, mode })
       alert('Invalid move! Must be exactly one edit away.')
     }
-    inputRef.current?.focus()
   }
 
+  // Physical keyboard support (desktop)
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') handleSubmit()
-  }
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value.toUpperCase())
+    if (e.key === 'Enter') submitWord()
+    if (e.key === 'Backspace') setInput((s) => s.slice(0, -1))
+    if (/^[a-zA-Z]$/.test(e.key)) setInput((s) => (s + e.key).toUpperCase())
   }
 
   const goMode = (m: GameMode) => {
@@ -190,10 +179,7 @@ export default function Page() {
 
   const saveNameAndStart = () => {
     const clean = name.trim()
-    if (clean.length < 2) {
-      alert('Please enter at least 2 characters.')
-      return
-    }
+    if (clean.length < 2) { alert('Please enter at least 2 characters.'); return }
     localStorage.setItem('stackle_name', clean)
     setScreen('game')
   }
@@ -204,13 +190,7 @@ export default function Page() {
     gaEvent('share_click', { score, mode })
 
     if (navigator.share) {
-      navigator
-        .share({
-          title: 'My Stackle Word Score',
-          text: shareText,
-          url: window.location.href,
-        })
-        .catch(() => {})
+      navigator.share({ title: 'My Stackle Word Score', text: shareText, url: window.location.href }).catch(() => {})
     } else {
       navigator.clipboard.writeText(`${shareText} Play at ${window.location.href}`)
       alert('Link copied to clipboard!')
@@ -226,32 +206,28 @@ export default function Page() {
       alert('Score submitted!')
     } catch (e) {
       console.error(e)
-      alert('Failed to submit score. Check console / rules.')
+      alert('Failed to submit score.')
     } finally {
       setIsSaving(false)
     }
   }
 
   /* ---------- scramble ---------- */
-  const tokensEarned = MILESTONES.filter(
-    (m) => Math.max(stack.length - 1, 0) >= m
-  ).length
+  const tokensEarned = MILESTONES.filter((m) => Math.max(stack.length - 1, 0) >= m).length
   const tokensAvailable = tokensEarned - scramblesUsed
 
   const handleScramble = () => {
     if (tokensAvailable <= 0) return
     const list = dictionary.length ? dictionary : FALLBACK_SEEDS
     let newSeed = list[Math.floor(Math.random() * list.length)]
-    while (stack.includes(newSeed)) {
-      newSeed = list[Math.floor(Math.random() * list.length)]
-    }
+    while (stack.includes(newSeed)) newSeed = list[Math.floor(Math.random() * list.length)]
     setStack([newSeed, ...stack])
     setScramblesUsed((n) => n + 1)
     gaEvent('scramble_used', { atScore: stack.length - 1, mode })
     burst()
   }
 
-  /* ---------- animation variants ---------- */
+  /* ---------- animations ---------- */
   const popVariants: Variants = {
     hidden: { scale: 0.5, y: -40, opacity: 0 },
     show: {
@@ -261,6 +237,11 @@ export default function Page() {
       transition: { type: 'spring', stiffness: 500, damping: 25 },
     },
   }
+
+  /* ---------- virtual keyboard handlers ---------- */
+  const vkOnChar = (c: string) => setInput((s) => (s + c).toUpperCase())
+  const vkOnDelete = () => setInput((s) => s.slice(0, -1))
+  const vkOnEnter = () => submitWord()
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
@@ -276,9 +257,7 @@ export default function Page() {
             className="w-full max-w-md p-6 pt-16 text-center space-y-6 relative"
           >
             <h1 className="text-3xl font-bold mb-4 text-[#334155]">Stackle Word</h1>
-            <p className="text-sm text-gray-600 mb-6">
-              Choose a mode to start playing.
-            </p>
+            <p className="text-sm text-gray-600 mb-6">Choose a mode to start playing.</p>
 
             <div className="space-y-3">
               <button
@@ -329,9 +308,7 @@ export default function Page() {
             className="w-full max-w-md p-6 pt-16 text-center space-y-6"
           >
             <h2 className="text-2xl font-semibold text-[#334155]">Session Nickname</h2>
-            <p className="text-sm text-gray-600">
-              This will appear on the leaderboard.
-            </p>
+            <p className="text-sm text-gray-600">This will appear on the leaderboard.</p>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -363,19 +340,19 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-            {/* Sticky top */}
+            {/* Top input & seed */}
             <div className="sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-3">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
                   <input
                     ref={inputRef}
-                    type="text"
+                    readOnly
+                    inputMode="none"
                     value={input}
-                    onChange={onChange}
                     onKeyDown={onKeyDown}
-                    disabled={loadingSeed}
-                    className="w-full p-3 pr-14 border-2 border-[#334155] rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-[#3BB2F6] disabled:opacity-50 bg-[#F1F5F9]"
+                    className="w-full p-3 pr-14 border-2 border-[#334155] rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-[#3BB2F6] bg-[#F1F5F9] select-none"
                     placeholder={loadingSeed ? 'LOADING…' : 'ENTER WORD'}
+                    onFocus={(e) => e.currentTarget.blur()} // keep OS keyboard away
                   />
                   <span className="absolute inset-y-0 right-3 flex items-center text-[#334155] font-semibold">
                     {Math.max(stack.length - 1, 0)}
@@ -385,7 +362,7 @@ export default function Page() {
                   whileTap={{ scale: 0.9 }}
                   animate={sendSpin ? { rotate: 360 } : { rotate: 0 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                  onClick={handleSubmit}
+                  onClick={submitWord}
                   disabled={loadingSeed}
                   className="px-5 py-3 rounded-lg bg-[#3BB2F6] text-white text-xl flex items-center justify-center disabled:opacity-50"
                   aria-label="Submit word"
@@ -404,7 +381,7 @@ export default function Page() {
             </div>
 
             {/* Past words */}
-            <div className="mt-2 space-y-2 pb-28 overflow-hidden">
+            <div className="mt-2 space-y-2 pb-40 overflow-hidden">
               <AnimatePresence initial={false}>
                 {stack.slice(1).map((word, i) => (
                   <motion.div
@@ -430,20 +407,25 @@ export default function Page() {
                 exit={{ scale: 0, opacity: 0 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={handleScramble}
-                className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center"
+                className="fixed bottom-40 right-4 w-14 h-14 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center z-50"
                 aria-label="Scramble seed"
               >
-                <Image
-                  src="/icons/reset.png"
-                  alt="Scramble"
-                  width={36}
-                  height={36}
-                />
+                <Image src="/icons/reset.png" alt="Scramble" width={36} height={36} />
               </motion.button>
             )}
 
+            {/* Custom keyboard */}
+            {showVK && (
+              <VirtualKeyboard
+                onChar={vkOnChar}
+                onDelete={vkOnDelete}
+                onEnter={vkOnEnter}
+                disabled={loadingSeed}
+              />
+            )}
+
             {/* Bottom bar */}
-            <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3">
+            <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">
               <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
                 <button
                   onClick={handleShare}
