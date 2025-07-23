@@ -4,10 +4,8 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
-import type { Variants } from 'framer-motion'
+import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
-import { SiVenmo } from 'react-icons/si'
 import VirtualKeyboard from '@/components/VirtualKeyboard'
 import HowToModal from '@/components/HowToModal'
 import { event as gaEvent } from '@/lib/gtag'
@@ -29,7 +27,7 @@ export default function Page() {
   const [dictionary, setDictionary] = useState<string[]>([])
   const dictSet = useRef<Set<string>>(new Set())
 
-  const [stack, setStack] = useState<string[]>([])
+  const [stack, setStack] = useState<string[]>([]) // [seed, past1, past2...]
   const [input, setInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [sendSpin, setSendSpin] = useState(false)
@@ -43,7 +41,7 @@ export default function Page() {
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  /* -------- init -------- */
+  /* ------------ init ------------ */
   useEffect(() => {
     uidRef.current = getUserId()
     if (typeof window !== 'undefined') {
@@ -102,7 +100,8 @@ export default function Page() {
     }
   }
 
-  function isOneEditAway(a: string, b: string): boolean {
+  /* ---- one-edit rule ---- */
+  function isOneEditAway(a: string, b: string) {
     a = a.toUpperCase()
     b = b.toUpperCase()
     if (a === b) return false
@@ -129,39 +128,39 @@ export default function Page() {
     if (!dictSet.current.has(w)) { alert('Not a valid English word.'); return }
 
     const seed = stack[0]
-    if (isOneEditAway(seed, w)) {
-      const newStack = [w, ...stack]
-      setStack(newStack)
-      setInput('')
-
-      const wordsStacked = Math.max(newStack.length - 1, 0)
-      gaEvent('word_submit', { word: w, stackSize: wordsStacked, mode })
-
-      if (navigator.vibrate) navigator.vibrate(15)
-      if (wordsStacked > 0 && wordsStacked % 5 === 0) burst()
-
-      // rotate plane
-      setSendSpin(true)
-      setTimeout(() => setSendSpin(false), 350)
-
-      document.querySelectorAll('.stack-item').forEach((el, idx) => {
-        if (idx === 0) return
-        el.animate(
-          [
-            { transform: 'translateY(0px)' },
-            { transform: 'translateY(3px)' },
-            { transform: 'translateY(0px)' },
-          ],
-          { duration: 220, delay: idx * 12 }
-        )
-      })
-
-      // persist last score
-      localStorage.setItem('stackle_last_score', String(wordsStacked))
-    } else {
+    if (!isOneEditAway(seed, w)) {
       gaEvent('invalid_move', { attempted: w, from: seed, mode })
       alert('Invalid move! Must be exactly one edit away.')
+      return
     }
+
+    // success
+    const newStack = [w, ...stack] // w is new seed, old seed now first past word
+    setStack(newStack)
+    setInput('')
+
+    const wordsStacked = Math.max(newStack.length - 1, 0)
+    gaEvent('word_submit', { word: w, stackSize: wordsStacked, mode })
+    localStorage.setItem('stackle_last_score', String(wordsStacked))
+
+    if (navigator.vibrate) navigator.vibrate(15)
+    if (wordsStacked > 0 && wordsStacked % 5 === 0) burst()
+
+    setSendSpin(true)
+    setTimeout(() => setSendSpin(false), 350)
+
+    // ripple down a *little*, not huge
+    document.querySelectorAll('.stack-item').forEach((el, idx) => {
+      if (idx === 0) return
+      el.animate(
+        [
+          { transform: 'translateY(0px)' },
+          { transform: 'translateY(4px)' },
+          { transform: 'translateY(0px)' },
+        ],
+        { duration: 220, delay: idx * 15 }
+      )
+    })
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -225,7 +224,7 @@ export default function Page() {
     burst()
   }
 
-  /* ---------- Animations ---------- */
+  /* ---------- animations ---------- */
   const popVariants: Variants = {
     hidden: { scale: 0.5, y: -40, opacity: 0 },
     show: {
@@ -241,7 +240,7 @@ export default function Page() {
     show: {
       opacity: 1,
       y: 0,
-      transition: { staggerChildren: 0.2, delayChildren: 0.3 }, // slower
+      transition: { staggerChildren: 0.25, delayChildren: 0.4 },
     },
   }
 
@@ -260,7 +259,7 @@ export default function Page() {
   const activeChars = new Set(input.split(''))
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#FAFAFA] to-[#BDBDBD] flex flex-col items-center text-gray-900">
+    <main className="min-h-screen bg-gradient-to-b from-[#FAFAFA] to-[#CFCFCF] flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
         {screen === 'home' && (
           <motion.div
@@ -300,20 +299,18 @@ export default function Page() {
               </div>
             </motion.div>
 
+            {/* Put your own image in /public/support.png */}
             <motion.div
               variants={homeChild}
-              className="absolute left-3 bottom-3 text-[#334155] flex flex-col items-start space-y-1"
+              className="absolute left-3 bottom-3"
             >
-              <span className="text-sm font-semibold">@Nuiche 🕺</span>
-              <a
-                href="https://venmo.com/u/Nuiche"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center space-x-1 opacity-80 text-[10px]"
-              >
-                <SiVenmo className="w-3.5 h-3.5" />
-                <span>VENMO</span>
-              </a>
+              <Image
+                src="/support.png"
+                alt="Support"
+                width={120}
+                height={50}
+                priority
+              />
             </motion.div>
           </motion.div>
         )}
@@ -373,8 +370,8 @@ export default function Page() {
               </motion.button>
             )}
 
-            {/* Input & seed */}
-            <div className="sticky top-[28vh] z-10 bg-transparent backdrop-blur-sm pb-4">
+            {/* Input + seed block */}
+            <div className="sticky top-[26vh] z-10 bg-transparent backdrop-blur-sm pb-3">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
                   <input
@@ -413,8 +410,8 @@ export default function Page() {
               )}
             </div>
 
-            {/* Past words container (faded a bit because VK visible) */}
-            <div className="mt-6 space-y-3 pb-52 opacity-90">
+            {/* Past words - never behind input now */}
+            <div className="mt-4 space-y-3 pb-52">
               <AnimatePresence initial={false}>
                 {stack.slice(1).map((word, i) => (
                   <motion.div
@@ -432,7 +429,6 @@ export default function Page() {
               </AnimatePresence>
             </div>
 
-            {/* Virtual keyboard */}
             <VirtualKeyboard
               onChar={vkOnChar}
               onDelete={vkOnDelete}
@@ -441,7 +437,7 @@ export default function Page() {
               activeChars={activeChars}
             />
 
-            {/* Bottom actions */}
+            {/* bottom actions */}
             <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">
               <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
                 <button
@@ -466,7 +462,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Help modal */}
             <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
           </motion.div>
         )}
