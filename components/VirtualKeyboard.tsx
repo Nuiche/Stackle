@@ -22,20 +22,17 @@ export default function VirtualKeyboard({
   disabled,
   activeChars
 }: Props) {
-
   const base =
-    'h-14 flex items-center justify-center rounded-xl font-semibold text-xl active:scale-95 disabled:opacity-50 transition-colors select-none'
+    'flex items-center justify-center rounded-xl font-semibold text-xl h-14 w-full active:scale-95 disabled:opacity-50 transition-transform select-none'
 
-  const keyBtn = (k: string) => {
+  const Key = (k: string) => {
     const active = activeChars?.has(k)
     return (
       <button
         key={k}
         disabled={disabled}
         onClick={() => onChar(k)}
-        className={`${base} ${
-          active ? 'bg-[#3BB2F6] text-white' : 'bg-[#F1F5F9] text-[#334155]'
-        }`}
+        className={`${base} ${active ? 'bg-[#3BB2F6] text-white' : 'bg-[#F1F5F9] text-[#334155]'}`}
       >
         {k}
       </button>
@@ -43,26 +40,28 @@ export default function VirtualKeyboard({
   }
 
   return (
-    <div className="fixed bottom-20 left-0 right-0 mx-auto max-w-md px-2 z-60 pointer-events-auto">
-      {/* no gray housing, just rows */}
+    <div className="fixed bottom-20 left-0 right-0 mx-auto max-w-md px-3 z-50 pointer-events-auto">
       <div className="space-y-2">
-        <div className="grid grid-cols-10 gap-2">{R1.map(keyBtn)}</div>
-
+        {/* row 1 */}
         <div className="grid grid-cols-10 gap-2">
-          <div />
-          {R2.map(keyBtn)}
+          {R1.map(Key)}
+        </div>
+        {/* row 2 */}
+        <div className="grid grid-cols-10 gap-2">
+          <div />{/* spacer */}
+          {R2.map(Key)}
           <button
             aria-label="Delete"
             disabled={disabled}
             onClick={onDelete}
-            className={`${base} col-span-1 bg-[#F1F5F9] text-[#334155] text-2xl`}
+            className={`${base} bg-[#F1F5F9] text-[#334155] text-2xl`}
           >
             ⌫
           </button>
         </div>
-
+        {/* row 3 */}
         <div className="grid grid-cols-9 gap-2">
-          {R3.map(keyBtn)}
+          {R3.map(Key)}
           <button
             aria-label="Enter"
             disabled={disabled}
