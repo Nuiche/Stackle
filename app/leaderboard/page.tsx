@@ -33,7 +33,7 @@ export default function LeaderboardPage() {
 
   const Section = ({ title, rows }: { title: string; rows: Row[] }) => (
     <section className="mb-8">
-      <h2 className="text-xl font-bold mb-3 text-gray-900 dark:text-gray-100">{title}</h2>
+      <h2 className="text-xl font-bold mb-3 text-gray-900">{title}</h2>
       {rows.length === 0 ? (
         <p className="text-sm text-gray-400">No scores yet.</p>
       ) : (
@@ -68,11 +68,10 @@ export default function LeaderboardPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black text-gray-900 px-4 pb-16 max-w-md mx-auto">
-      {/* Back */}
       <div className="pt-4 pb-2">
         <Link
           href="/"
-          className="inline-block px-3 py-2 rounded-lg bg-gray-700 text-white text-sm"
+          className="inline-block px-3 py-2 rounded-lg bg-[#334155] text-white text-sm"
         >
           ← Back
         </Link>
@@ -80,7 +79,7 @@ export default function LeaderboardPage() {
 
       {/* Banner */}
       <div className="mb-8">
-        <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-green-500 px-4 py-5 shadow-lg text-center">
+        <div className="rounded-2xl bg-gradient-to-r from-[#3BB2F6] to-[#10B981] px-4 py-5 shadow-lg text-center">
           <h1 className="text-4xl font-extrabold text-white tracking-wide">
             Global Rankings
           </h1>

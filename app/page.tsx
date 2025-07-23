@@ -9,8 +9,9 @@ import React, {
   ChangeEvent,
 } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
+import { FaShareAlt, FaTrophy, FaPaperPlane, FaVenmo } from 'react-icons/fa'
 import { event as gaEvent } from '@/lib/gtag'
 import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
@@ -20,7 +21,7 @@ import { getDailyLeaderboard } from '@/lib/getLeaderboard'
 type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
 
-const MILESTONES = [5, 10, 20, 30, 50]
+const MILESTONES = [5, 12, 21, 32] // you can extend this
 const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
 
 export default function Page() {
@@ -35,14 +36,18 @@ export default function Page() {
   const [isSaving, setIsSaving] = useState(false)
   const [sendSpin, setSendSpin] = useState(false)
   const [loadingSeed, setLoadingSeed] = useState(false)
-  const [ripple, setRipple] = useState(false)
 
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
+
+  // scramble
+  const [scramblesUsed, setScramblesUsed] = useState(0)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  /* ---------- init ---------- */
+  // ripple toggle
+  const [rippleKey, setRippleKey] = useState(0)
+
   useEffect(() => {
     uidRef.current = getUserId()
     const stored = typeof window !== 'undefined'
@@ -90,6 +95,7 @@ export default function Page() {
         setStack([rand])
       }
       setInput('')
+      setScramblesUsed(0)
       setTimeout(() => inputRef.current?.focus(), 0)
     } finally {
       setLoadingSeed(false)
@@ -146,12 +152,12 @@ export default function Page() {
       if (navigator.vibrate) navigator.vibrate(15)
       if (wordsStacked > 0 && wordsStacked % 5 === 0) burst()
 
+      // pop animation trigger
       setSendSpin(true)
-      setRipple(true)
-      setTimeout(() => {
-        setSendSpin(false)
-        setRipple(false)
-      }, 300)
+      setTimeout(() => setSendSpin(false), 350)
+
+      // ripple list
+      setRippleKey((k) => k + 1)
     } else {
       gaEvent('invalid_move', { attempted: w, from: seed, mode })
       alert('Invalid move! Must be exactly one edit away.')
@@ -162,7 +168,6 @@ export default function Page() {
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') handleSubmit()
   }
-
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value.toUpperCase())
   }
@@ -218,13 +223,31 @@ export default function Page() {
     }
   }
 
-  /* ---------- animation variants ---------- */
-  const listVariants = {
-    ripple: {
-      transition: { staggerChildren: 0.03 },
-    },
+  /* ---------- scramble ---------- */
+  const tokensEarned = MILESTONES.filter((m) => Math.max(stack.length - 1, 0) >= m).length
+  const tokensAvailable = tokensEarned - scramblesUsed
+
+  const handleScramble = () => {
+    if (tokensAvailable <= 0) return
+    const list = dictionary.length ? dictionary : FALLBACK_SEEDS
+    let newSeed = list[Math.floor(Math.random() * list.length)]
+    // avoid immediate duplicate
+    while (stack.includes(newSeed)) {
+      newSeed = list[Math.floor(Math.random() * list.length)]
+    }
+    setStack([newSeed, ...stack])
+    setScramblesUsed((n) => n + 1)
+    gaEvent('scramble_used', { atScore: stack.length - 1, mode })
+    burst()
   }
-  const itemVariants = {
+
+  /* ---------- animation variants ---------- */
+  const popVariants = {
+    initial: { scale: 0.5, y: -40, opacity: 0 },
+    animate: { scale: 1, y: 0, opacity: 1, transition: { type: 'spring', stiffness: 500, damping: 25 } },
+  }
+
+  const oldItemVariants = {
     ripple: { y: [0, 6, 0], transition: { duration: 0.25 } },
   }
 
@@ -238,33 +261,44 @@ export default function Page() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -30 }}
             transition={{ duration: 0.25 }}
-            className="w-full max-w-md p-6 pt-16 text-center space-y-6"
+            className="w-full max-w-md p-6 pt-16 text-center space-y-6 relative"
           >
-            <h1 className="text-3xl font-bold mb-4">Stackle Word</h1>
+            <h1 className="text-3xl font-bold mb-4 text-[#334155]">Stackle Word</h1>
             <p className="text-sm text-gray-600 mb-6">
               Choose a mode to start playing.
             </p>
             <div className="space-y-3">
               <button
                 onClick={() => goMode('endless')}
-                className="w-full py-3 rounded-lg bg-blue-500 text-white text-lg"
+                className="w-full py-3 rounded-lg bg-[#3BB2F6] text-white text-lg"
               >
                 Endless
               </button>
               <div>
                 <button
                   onClick={() => goMode('daily')}
-                  className="w-full py-3 rounded-lg bg-green-600 text-white text-lg"
+                  className="w-full py-3 rounded-lg bg-[#10B981] text-white text-lg"
                 >
                   Daily Challenge
                 </button>
                 {topDaily && (
-                  <p className="text-xs text-gray-200 mt-2">
+                  <p className="text-xs text-gray-500 mt-2">
                     Top today: <span className="font-semibold">{topDaily.name ?? 'Anon'}</span> – {topDaily.score}
                   </p>
                 )}
               </div>
             </div>
+
+            {/* Venmo link bottom-left */}
+            <a
+              href="https://venmo.com/u/Nuiche"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute left-3 bottom-3 flex items-center space-x-1 text-xs text-[#334155]"
+            >
+              <FaVenmo />
+              <span>@Nuiche 🕺</span>
+            </a>
           </motion.div>
         )}
 
@@ -277,7 +311,7 @@ export default function Page() {
             transition={{ duration: 0.25 }}
             className="w-full max-w-md p-6 pt-16 text-center space-y-6"
           >
-            <h2 className="text-2xl font-semibold">Session Nickname</h2>
+            <h2 className="text-2xl font-semibold text-[#334155]">Session Nickname</h2>
             <p className="text-sm text-gray-600">
               This will appear on the leaderboard.
             </p>
@@ -285,12 +319,12 @@ export default function Page() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={16}
-              className="w-full p-3 border-2 border-gray-400 rounded-lg text-center text-lg focus:outline-none focus:border-blue-500"
+              className="w-full p-3 border-2 border-[#334155] rounded-lg text-center text-lg focus:outline-none focus:border-[#3BB2F6]"
               placeholder="e.g. WonTronSoup"
             />
             <button
               onClick={saveNameAndStart}
-              className="w-full py-3 rounded-lg bg-blue-500 text-white text-lg"
+              className="w-full py-3 rounded-lg bg-[#3BB2F6] text-white text-lg"
             >
               Continue
             </button>
@@ -322,10 +356,10 @@ export default function Page() {
                     onChange={onChange}
                     onKeyDown={onKeyDown}
                     disabled={loadingSeed}
-                    className="w-full p-3 pr-14 border-2 border-gray-500 rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                    className="w-full p-3 pr-14 border-2 border-[#334155] rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-[#3BB2F6] disabled:opacity-50 bg-[#F1F5F9]"
                     placeholder={loadingSeed ? 'LOADING…' : 'ENTER WORD'}
                   />
-                  <span className="absolute inset-y-0 right-3 flex items-center text-gray-500 font-semibold">
+                  <span className="absolute inset-y-0 right-3 flex items-center text-[#334155] font-semibold">
                     {Math.max(stack.length - 1, 0)}
                   </span>
                 </div>
@@ -335,7 +369,7 @@ export default function Page() {
                   transition={{ type: 'spring', stiffness: 300, damping: 15 }}
                   onClick={handleSubmit}
                   disabled={loadingSeed}
-                  className="px-5 py-3 rounded-lg bg-blue-600 text-white text-xl flex items-center justify-center disabled:opacity-50"
+                  className="px-5 py-3 rounded-lg bg-[#3BB2F6] text-white text-xl flex items-center justify-center disabled:opacity-50"
                   aria-label="Submit word"
                 >
                   <FaPaperPlane />
@@ -344,56 +378,83 @@ export default function Page() {
 
               {stack[0] && !loadingSeed && (
                 <div className="mb-2">
-                  <div className="w-full text-center py-3 rounded-lg bg-gray-700 text-white text-2xl font-semibold tracking-widest">
+                  <div className="w-full text-center py-3 rounded-lg bg-[#334155] text-white text-2xl font-semibold tracking-widest">
                     {stack[0]}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Past words list with ripple */}
-            <motion.div
-              className="mt-2 space-y-2 pb-28"
-              variants={listVariants}
-              animate={ripple ? 'ripple' : undefined}
-            >
+            {/* Past words */}
+            <div className="mt-2 space-y-2 pb-28 overflow-hidden">
               <AnimatePresence initial={false}>
                 {stack.slice(1).map((word, i) => (
                   <motion.div
                     key={`${word}-${i}`}
-                    layout
-                    initial={{ opacity: 0, scale: 0.6, y: -30 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    layout="position"
+                    initial="initial"
+                    animate="animate"
                     exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                    variants={itemVariants}
-                    className="p-4 rounded-lg shadow bg-green-500 text-white text-lg"
+                    variants={popVariants}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                    onAnimationStart={() => {
+                      // trigger ripple on others
+                      const items = document.querySelectorAll('.stack-item')
+                      items.forEach((el, idx) => {
+                        if (idx === 0) return
+                        el.animate(
+                          [{ transform: 'translateY(0px)' }, { transform: 'translateY(6px)' }, { transform: 'translateY(0px)' }],
+                          { duration: 250, delay: idx * 15 }
+                        )
+                      })
+                    }}
+                    className="stack-item p-4 rounded-lg shadow bg-[#10B981] text-white text-lg"
                   >
                     {word}
                   </motion.div>
                 ))}
               </AnimatePresence>
-            </motion.div>
+            </div>
+
+            {/* Scramble button */}
+            {tokensAvailable > 0 && (
+              <motion.button
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleScramble}
+                className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center"
+                aria-label="Scramble seed"
+              >
+                <Image
+                  src="/icons/reset.png"
+                  alt="Scramble"
+                  width={36}
+                  height={36}
+                />
+              </motion.button>
+            )}
 
             {/* Bottom bar */}
             <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3">
               <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
                 <button
                   onClick={handleShare}
-                  className="flex-1 py-2 bg-indigo-500 text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
+                  className="flex-1 py-2 bg-[#3BB2F6] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
                 >
                   <FaShareAlt /> <span>Share</span>
                 </button>
                 <button
                   onClick={handleSubmitScore}
                   disabled={isSaving}
-                  className="flex-1 py-2 bg-emerald-600 text-white rounded-lg flex items-center justify-center space-x-1 text-sm disabled:opacity-60"
+                  className="flex-1 py-2 bg-[#10B981] text-white rounded-lg flex items-center justify-center space-x-1 text-sm disabled:opacity-60"
                 >
                   <FaTrophy /> <span>{isSaving ? 'Saving…' : 'Submit'}</span>
                 </button>
                 <Link
                   href="/leaderboard"
-                  className="flex-1 py-2 bg-gray-700 text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
+                  className="flex-1 py-2 bg-[#334155] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
                 >
                   <span>Board</span>
                 </Link>
