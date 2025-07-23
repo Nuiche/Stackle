@@ -8,21 +8,27 @@ import React, {
   useCallback,
 } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { FaTrophy, FaPaperPlane, FaShareAlt, FaListAlt } from 'react-icons/fa';
+import {
+  FaShareAlt,
+  FaTrophy,
+  FaPaperPlane,
+  FaListOl,
+} from 'react-icons/fa';
 
 import { event as gaEvent } from '@/lib/gtag';
 import { burst } from '@/lib/confetti';
 import { saveScore, SaveScoreResult } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
-import { titleFont } from '@/lib/fonts';
 
 import HowToModal from '@/components/HowToModal';
 
+// ------------ Types ------------
 type GameMode = 'daily' | 'endless';
+
+// ------------ Constants ------------
 const MAX_LEN = 8;
 const POP_INTERVALS = [5, 12, 21, 32, 45];
 
-// ENTER left, DEL right
 const KB_ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
@@ -40,15 +46,7 @@ const popVariants: Variants = {
   exit: { opacity: 0, scale: 0.8, y: 10, transition: { duration: 0.15 } },
 };
 
-const childFall: Variants = {
-  hidden: { opacity: 0, y: -40 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring', stiffness: 200, damping: 18 },
-  },
-};
-
+// ------------ Helpers ------------
 const isOneLetterDifferent = (a: string, b: string) => {
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0,
@@ -79,46 +77,52 @@ async function fetchDictionary(): Promise<Set<string>> {
   return new Set(json);
 }
 
+// ------------ Component ------------
 export default function Page() {
+  // UI
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
 
+  // Game
   const [nickname, setNickname] = useState('');
   const [gameMode, setGameMode] = useState<GameMode>('endless');
-  const [seedWord, setSeedWord] = useState('TREAT');
-  const [stack, setStack] = useState<string[]>([]);
+  const [seedWord, setSeedWord] = useState('STONE');
+  const [stack, setStack] = useState<string[]>([]); // words after the original seed
   const [score, setScore] = useState(0);
   const [input, setInput] = useState('');
   const [dict, setDict] = useState<Set<string>>(new Set());
   const [submitState, setSubmitState] =
     useState<'idle' | 'saving' | 'saved'>('idle');
 
-  const [isTouch, setIsTouch] = useState(false);
-
+  // misc
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Load dictionary & nickname
   useEffect(() => {
     fetchDictionary().then(setDict);
     const saved = localStorage.getItem('lexit_nick');
     if (saved) setNickname(saved);
-    setIsTouch(typeof window !== 'undefined' && 'ontouchstart' in window);
   }, []);
 
+  // focus
   useEffect(() => {
-    if (!showHome && !isTouch) inputRef.current?.focus();
-  }, [showHome, isTouch]);
+    if (!showHome) inputRef.current?.focus();
+  }, [showHome]);
 
+  // start game
   const startGame = async (mode: GameMode) => {
     setGameMode(mode);
+    let firstSeed = seedWord;
     if (mode === 'daily') {
       const r = await fetch('/api/seed');
       const s = await r.json();
-      setSeedWord(s.seed.toUpperCase());
+      firstSeed = s.seed?.toUpperCase() ?? 'STONE';
     } else {
+      // endless
       const arr = Array.from(dict.values());
-      const rand = arr[Math.floor(Math.random() * arr.length)] || 'STONE';
-      setSeedWord(rand.toUpperCase());
+      firstSeed = (arr[Math.floor(Math.random() * arr.length)] || 'STONE').toUpperCase();
     }
+    setSeedWord(firstSeed);
     setStack([]);
     setScore(0);
     setInput('');
@@ -126,45 +130,50 @@ export default function Page() {
     setShowHelp(true);
   };
 
+  // submit word
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
+
     if (newWord.length > MAX_LEN) {
       alert(`Max word length is ${MAX_LEN}.`);
       return;
     }
+
     const currentSeed = stack.length ? stack[stack.length - 1] : seedWord;
+
     if (stack.includes(newWord) || newWord === currentSeed) {
       alert('Already used that word!');
       return;
     }
+
     if (!dict.has(newWord)) {
       alert('Not a valid English word.');
       return;
     }
+
     if (!isOneLetterDifferent(currentSeed, newWord)) {
-      alert('Must differ by exactly one letter (insert/delete/replace).');
+      alert('Must differ by exactly one letter.');
       return;
     }
 
-    setStack((prev) => [...prev, newWord]);
+    setStack((p) => [...p, newWord]);
     setScore((s) => s + 1);
     setInput('');
-    if (POP_INTERVALS.includes(score + 1)) burst();
-    if (!isTouch) inputRef.current?.focus();
-  }, [input, seedWord, stack, score, dict, isTouch]);
 
+    if (POP_INTERVALS.includes(score + 1)) burst();
+
+    inputRef.current?.focus();
+  }, [input, seedWord, stack, score, dict]);
+
+  // VK
   const onVKPress = (key: string) => {
-    if (key === 'ENTER') {
-      submitWord();
-      return;
-    }
+    if (key === 'ENTER') return submitWord();
     if (key === 'DEL') {
       setInput((v) => v.slice(0, -1));
       return;
     }
-    if (input.length >= MAX_LEN) return;
-    setInput((v) => (v + key).toUpperCase());
+    if (input.length < MAX_LEN) setInput((v) => (v + key).toUpperCase());
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -174,8 +183,9 @@ export default function Page() {
     }
   };
 
+  // save score
   const handleSaveScore = async () => {
-    if (submitState !== 'idle') return;
+    if (submitState !== 'idle' || score === 0) return;
     setSubmitState('saving');
     try {
       const dk = gameMode === 'daily' ? buildDayKey() : undefined;
@@ -183,34 +193,18 @@ export default function Page() {
         name: nickname || 'Anon',
         mode: gameMode,
         score,
-        seed: stack.at(-1) ?? seedWord, // end
-        startSeed: seedWord,            // start
+        startSeed: seedWord,
+        endSeed: stack.at(-1) ?? seedWord,
         dayKey: dk,
       };
-      const resp: SaveScoreResult = await saveScore(payload);
-      if (!resp.ok) throw new Error(resp.error || 'save failed');
+      const res: SaveScoreResult = await saveScore(payload);
+      if (!res.ok) throw new Error(res.error || 'save failed');
       setSubmitState('saved');
       gaEvent('submit_score', { score, mode: gameMode });
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
       alert('Could not save score.');
       setSubmitState('idle');
-    }
-  };
-
-  const shareSite = async () => {
-    const origin =
-      typeof window !== 'undefined' ? window.location.origin : '';
-    const text = `I scored ${score} in Lexit (${gameMode})! Try it: ${origin}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ text, url: origin, title: 'Lexit' });
-      } else {
-        await navigator.clipboard.writeText(text);
-        alert('Link copied!');
-      }
-    } catch {
-      alert('Share failed, copy manually.');
     }
   };
 
@@ -229,6 +223,11 @@ export default function Page() {
     setSubmitState('idle');
   };
 
+  // build full list for rendering (seed first)
+  const fullList = [seedWord, ...stack];
+  const latestSeed = fullList[fullList.length - 1]; // dark bar
+  const history = fullList.slice(0, -1).reverse(); // greens
+
   if (showHome) {
     return (
       <HomeScreen
@@ -239,23 +238,23 @@ export default function Page() {
     );
   }
 
-  const latestSeed = stack.length ? stack[stack.length - 1] : seedWord;
   const canSubmitScore = score > 0 && submitState !== 'saved';
 
   return (
     <>
       <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
 
-      <main className="min-h-screen bg-gradient-to-b from-[#F1F5F9] to-[#D1D5DB] flex flex-col items-center pb-40 relative">
+      <div className="min-h-screen flex flex-col items-center pb-40 relative">
+        {/* Back */}
         <button
           onClick={backHome}
-          className="absolute left-4 top-4 text-[#334155] underline z-50"
+          className="absolute left-4 top-4 text-[#334155] underline"
         >
           ← Back
         </button>
 
-        {/* Input + seed */}
-        <div className="w-full max-w-md px-4 mt-20 z-40">
+        {/* Input + Seed */}
+        <div className="w-full max-w-md px-4 mt-20">
           <div className="flex gap-2 items-center mb-2">
             <input
               ref={inputRef}
@@ -264,12 +263,8 @@ export default function Page() {
               onKeyDown={onKeyDown}
               maxLength={MAX_LEN}
               placeholder="ENTER WORD"
-              inputMode={isTouch ? 'none' : 'text'}
-              readOnly={isTouch}
-              onFocus={(e) => {
-                if (isTouch) e.currentTarget.blur();
-              }}
               className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
+              inputMode="none"
             />
             <button
               onClick={submitWord}
@@ -291,44 +286,39 @@ export default function Page() {
           </motion.div>
         </div>
 
-        {/* Past words */}
-        <div className="w-full max-w-md px-4 flex-1 overflow-hidden z-30">
+        {/* History */}
+        <div className="w-full max-w-md px-4 flex-1 overflow-hidden">
           <AnimatePresence initial={false}>
-            {stack
-              .slice(0, -1)
-              .reverse()
-              .map((w) => (
-                <motion.div
-                  key={w}
-                  variants={popVariants}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-80"
-                >
-                  {w}
-                </motion.div>
-              ))}
+            {history.map((w) => (
+              <motion.div
+                key={w}
+                variants={popVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-80"
+              >
+                {w}
+              </motion.div>
+            ))}
           </AnimatePresence>
         </div>
 
-        {/* Keyboard */}
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-4 pointer-events-none">
-          <div className="backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-3 space-y-2 pointer-events-auto">
-            {KB_ROWS.map((row, i) => (
-              <div key={i} className="flex gap-2">
-                {row.map((k, idx) => {
+        {/* Virtual keyboard */}
+        <div className="fixed bottom-24 left-0 right-0 flex flex-col items-center pointer-events-none">
+          <div className="backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto">
+            {KB_ROWS.map((row, idx) => (
+              <div key={idx} className="flex justify-center gap-2 mb-2 last:mb-0">
+                {row.map((k) => {
                   const isEnter = k === 'ENTER';
                   const isDel = k === 'DEL';
                   return (
                     <button
                       key={k}
                       onClick={() => onVKPress(k)}
-                      className={`flex-1 h-12 rounded-xl ${
-                        isEnter || isDel
-                          ? 'bg-[#3BB2F6] text-white'
-                          : 'bg-[#E2E8F0] text-[#334155]'
-                      } text-lg font-semibold flex items-center justify-center`}
+                      className={`h-12 ${
+                        isEnter || isDel ? 'w-16' : 'w-10'
+                      } rounded-xl bg-[#F1F5F9] text-[#334155] text-lg font-semibold flex items-center justify-center`}
                     >
                       {isEnter ? '↵' : isDel ? '⌫' : k}
                     </button>
@@ -339,12 +329,19 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-3">
-          <div className="bg-[#1e293b]/80 backdrop-blur-sm rounded-2xl px-4 py-3 flex gap-3 justify-between">
+        {/* Bottom buttons */}
+        <div className="fixed bottom-4 left-0 right-0 flex justify-center">
+          <div className="bg-[#334155]/80 backdrop-blur-sm rounded-3xl px-3 py-2 flex gap-3">
             <button
-              onClick={shareSite}
-              className="flex-1 py-3 rounded-lg bg-[#3BB2F6] text-white font-semibold flex items-center justify-center gap-2"
+              onClick={() => {
+                const text = `${nickname || 'Anon'} – ${
+                  gameMode === 'daily' ? 'Daily' : 'Endless'
+                } – Score ${score}\nPlay: https://lexit.uno`;
+                navigator.share
+                  ? navigator.share({ text })
+                  : navigator.clipboard.writeText(text);
+              }}
+              className="h-10 px-4 rounded-xl bg-[#3BB2F6] text-white flex items-center gap-2"
             >
               <FaShareAlt /> Share
             </button>
@@ -352,7 +349,7 @@ export default function Page() {
             <button
               disabled={!canSubmitScore}
               onClick={handleSaveScore}
-              className={`flex-1 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 ${
+              className={`h-10 px-4 rounded-xl flex items-center gap-2 ${
                 canSubmitScore
                   ? 'bg-[#10B981] text-white'
                   : 'bg-gray-400 text-white/60'
@@ -364,18 +361,18 @@ export default function Page() {
 
             <a
               href="/leaderboard"
-              className="flex-1 py-3 rounded-lg bg-[#334155] text-white font-semibold flex items-center justify-center gap-2"
+              className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center gap-2"
             >
-              <FaListAlt />
-              Board
+              <FaListOl /> Board
             </a>
           </div>
         </div>
-      </main>
+      </div>
     </>
   );
 }
 
+// ------------ Home screen ------------
 function HomeScreen({
   nickname,
   onNicknameChange,
@@ -386,16 +383,19 @@ function HomeScreen({
   onStart: (mode: GameMode) => void;
 }) {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#F1F5F9] to-[#D1D5DB] flex flex-col items-center justify-center text-center relative">
+    <div className="min-h-screen flex flex-col items-center justify-center text-center relative">
       <motion.div
         initial="hidden"
         animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }}
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.35 } },
+        }}
         className="w-full max-w-md px-6 space-y-6"
       >
         <motion.h1
           variants={childFall}
-          className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}
+          className="text-5xl font-extrabold text-[#334155]"
         >
           Lexit
         </motion.h1>
@@ -428,6 +428,15 @@ function HomeScreen({
           Change nickname {nickname ? `(@${nickname})` : ''}
         </motion.div>
       </motion.div>
-    </main>
+    </div>
   );
 }
+
+const childFall: Variants = {
+  hidden: { opacity: 0, y: -40 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 200, damping: 18 },
+  },
+};
