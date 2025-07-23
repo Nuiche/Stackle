@@ -1,26 +1,21 @@
 // lib/gtag.ts
-export const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? ''
-
-type PageViewParams = { page_path: string }
-type EventParams = Record<string, string | number | boolean | undefined>
-
-type GtagArgs =
-  | ['js', Date]
-  | ['config', string, PageViewParams?]
-  | ['event', string, EventParams?]
+export const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? '';
 
 declare global {
   interface Window {
-    gtag: (...args: GtagArgs) => void
+    dataLayer: unknown[];
+    gtag: (...args: unknown[]) => void;
   }
 }
 
-export const pageview = (url: string): void => {
-  if (!GA_ID || typeof window === 'undefined' || typeof window.gtag !== 'function') return
-  window.gtag('config', GA_ID, { page_path: url })
-}
+export type GAParams = Record<string, unknown>;
 
-export const event = (action: string, params: EventParams = {}): void => {
-  if (!GA_ID || typeof window === 'undefined' || typeof window.gtag !== 'function') return
-  window.gtag('event', action, params)
-}
+export const pageview = (url: string) => {
+  if (!GA_ID || typeof window === 'undefined' || !window.gtag) return;
+  window.gtag('event', 'page_view', { page_location: url });
+};
+
+export const gaEvent = (action: string, params: GAParams = {}) => {
+  if (!GA_ID || typeof window === 'undefined' || !window.gtag) return;
+  window.gtag('event', action, params);
+};

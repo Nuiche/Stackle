@@ -1,59 +1,25 @@
 // lib/getLeaderboard.ts
-import { db } from './firebase';
 import {
   collection,
-  getDocs,
   query,
   where,
   orderBy,
   limit,
+  getDocs,
 } from 'firebase/firestore';
-import { GameMode } from './saveScore';
+import { db } from './firebase';
 
-export interface Row {
-  id: string;
-  name: string;
-  score: number;
-  mode: GameMode;
-  startSeed: string;
-  endSeed: string;
-  dayKey?: string | null;
-  createdAt?: any;
-}
-
-const scoresRef = collection(db, 'scores');
-
-export async function getDailyLeaderboard(dayKey: string): Promise<Row[]> {
+export async function getDailyLeaderboard(dayKey: string) {
+  const ref = collection(db, 'scores');
   const q = query(
-    scoresRef,
+    ref,
     where('mode', '==', 'daily'),
     where('dayKey', '==', dayKey),
     orderBy('score', 'desc'),
     orderBy('createdAt', 'asc'),
-    limit(50)
+    limit(15)               // <-- cap at 15
   );
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Row[];
-}
 
-export async function getEndlessLatest(): Promise<Row[]> {
-  const q = query(
-    scoresRef,
-    where('mode', '==', 'endless'),
-    orderBy('createdAt', 'desc'),
-    limit(20)
-  );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Row[];
-}
-
-export async function getAllTime(): Promise<Row[]> {
-  const q = query(
-    scoresRef,
-    orderBy('score', 'desc'),
-    orderBy('createdAt', 'asc'),
-    limit(20)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Row[];
+  return snap.docs.map((d) => d.data());
 }
