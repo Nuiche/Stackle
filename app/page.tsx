@@ -8,28 +8,21 @@ import React, {
   useCallback,
 } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import {
-  FaShareAlt,
-  FaTrophy,
-  FaPaperPlane,
-  FaListOl,
-} from 'react-icons/fa';
+import { FaShareAlt, FaTrophy, FaListUl, FaPaperPlane } from 'react-icons/fa';
 
-import { event as gaEvent } from '@/lib/gtag';
 import { burst } from '@/lib/confetti';
-import { saveScore, SaveScoreResult } from '@/lib/saveScore';
+import { event as gaEvent } from '@/lib/gtag';
+import { saveScore, SaveScoreResult, GameMode } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
 
 import HowToModal from '@/components/HowToModal';
 
-// ------------ Types ------------
-type GameMode = 'daily' | 'endless';
-
-// ------------ Constants ------------
+// ---------------- Constants ----------------
 const MAX_LEN = 8;
 const POP_INTERVALS = [5, 12, 21, 32, 45];
 
 const KB_ROWS = [
+  // ENTER on left, DEL on right
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
   ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'],
@@ -46,7 +39,16 @@ const popVariants: Variants = {
   exit: { opacity: 0, scale: 0.8, y: 10, transition: { duration: 0.15 } },
 };
 
-// ------------ Helpers ------------
+const childFall: Variants = {
+  hidden: { opacity: 0, y: -40 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 200, damping: 18 },
+  },
+};
+
+// ---------------- Helpers ----------------
 const isOneLetterDifferent = (a: string, b: string) => {
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0,
@@ -73,28 +75,29 @@ const isOneLetterDifferent = (a: string, b: string) => {
 
 async function fetchDictionary(): Promise<Set<string>> {
   const res = await fetch('/api/dictionary');
-  const json: string[] = await res.json();
-  return new Set(json);
+  const data: string[] = await res.json();
+  return new Set(data);
 }
 
-// ------------ Component ------------
+// ---------------- Page ----------------
 export default function Page() {
-  // UI
+  // Home / modals
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
 
-  // Game
+  // Game state
   const [nickname, setNickname] = useState('');
   const [gameMode, setGameMode] = useState<GameMode>('endless');
-  const [seedWord, setSeedWord] = useState('STONE');
-  const [stack, setStack] = useState<string[]>([]); // words after the original seed
+  const [seedWord, setSeedWord] = useState('TREAT');
+  const [stack, setStack] = useState<string[]>([]);
   const [score, setScore] = useState(0);
   const [input, setInput] = useState('');
   const [dict, setDict] = useState<Set<string>>(new Set());
-  const [submitState, setSubmitState] =
-    useState<'idle' | 'saving' | 'saved'>('idle');
+  const [submitState, setSubmitState] = useState<'idle' | 'saving' | 'saved'>(
+    'idle'
+  );
 
-  // misc
+  // refs
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load dictionary & nickname
@@ -104,33 +107,32 @@ export default function Page() {
     if (saved) setNickname(saved);
   }, []);
 
-  // focus
+  // focus input when game screen shows (desktop)
   useEffect(() => {
     if (!showHome) inputRef.current?.focus();
   }, [showHome]);
 
-  // start game
+  // Start game
   const startGame = async (mode: GameMode) => {
     setGameMode(mode);
-    let firstSeed = seedWord;
     if (mode === 'daily') {
       const r = await fetch('/api/seed');
       const s = await r.json();
-      firstSeed = s.seed?.toUpperCase() ?? 'STONE';
+      setSeedWord(s.seed.toUpperCase());
     } else {
-      // endless
       const arr = Array.from(dict.values());
-      firstSeed = (arr[Math.floor(Math.random() * arr.length)] || 'STONE').toUpperCase();
+      const rand = arr[Math.floor(Math.random() * arr.length)] || 'STONE';
+      setSeedWord(rand.toUpperCase());
     }
-    setSeedWord(firstSeed);
     setStack([]);
     setScore(0);
     setInput('');
+    setSubmitState('idle');
     setShowHome(false);
     setShowHelp(true);
   };
 
-  // submit word
+  // Submit new word
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
@@ -163,19 +165,10 @@ export default function Page() {
 
     if (POP_INTERVALS.includes(score + 1)) burst();
 
-    inputRef.current?.focus();
+    inputRef.current?.blur(); // keep native kb away
   }, [input, seedWord, stack, score, dict]);
 
-  // VK
-  const onVKPress = (key: string) => {
-    if (key === 'ENTER') return submitWord();
-    if (key === 'DEL') {
-      setInput((v) => v.slice(0, -1));
-      return;
-    }
-    if (input.length < MAX_LEN) setInput((v) => (v + key).toUpperCase());
-  };
-
+  // Physical keyboard (desktop)
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -183,9 +176,23 @@ export default function Page() {
     }
   };
 
-  // save score
+  // Virtual keyboard
+  const onVKPress = (key: string) => {
+    if (key === 'ENTER') {
+      submitWord();
+      return;
+    }
+    if (key === 'DEL') {
+      setInput((v) => v.slice(0, -1));
+      return;
+    }
+    if (input.length >= MAX_LEN) return;
+    setInput((v) => (v + key).toUpperCase());
+  };
+
+  // Save score
   const handleSaveScore = async () => {
-    if (submitState !== 'idle' || score === 0) return;
+    if (submitState !== 'idle') return;
     setSubmitState('saving');
     try {
       const dk = gameMode === 'daily' ? buildDayKey() : undefined;
@@ -208,6 +215,23 @@ export default function Page() {
     }
   };
 
+  // Share plain link
+  const handleShare = () => {
+    const text = `I scored ${score} in ${
+      gameMode === 'daily' ? 'the Daily Challenge' : 'Endless Mode'
+    } on Lexit!`;
+    const url = typeof window !== 'undefined' ? window.location.origin : '';
+    if (navigator.share) {
+      navigator
+        .share({ text, url })
+        .catch(() => navigator.clipboard.writeText(`${text} ${url}`));
+    } else {
+      navigator.clipboard.writeText(`${text} ${url}`);
+      alert('Link copied!');
+    }
+  };
+
+  // change nickname
   const changeNick = () => {
     const n = prompt('Enter a new nickname (max 20 chars):', nickname) || '';
     const clean = n.trim().slice(0, 20);
@@ -215,6 +239,7 @@ export default function Page() {
     localStorage.setItem('lexit_nick', clean);
   };
 
+  // Back to home
   const backHome = () => {
     setShowHome(true);
     setStack([]);
@@ -222,11 +247,6 @@ export default function Page() {
     setInput('');
     setSubmitState('idle');
   };
-
-  // build full list for rendering (seed first)
-  const fullList = [seedWord, ...stack];
-  const latestSeed = fullList[fullList.length - 1]; // dark bar
-  const history = fullList.slice(0, -1).reverse(); // greens
 
   if (showHome) {
     return (
@@ -238,6 +258,7 @@ export default function Page() {
     );
   }
 
+  const latestSeed = stack.length ? stack[stack.length - 1] : seedWord;
   const canSubmitScore = score > 0 && submitState !== 'saved';
 
   return (
@@ -253,7 +274,7 @@ export default function Page() {
           ← Back
         </button>
 
-        {/* Input + Seed */}
+        {/* Input + button + score in box */}
         <div className="w-full max-w-md px-4 mt-20">
           <div className="flex gap-2 items-center mb-2">
             <input
@@ -265,6 +286,10 @@ export default function Page() {
               placeholder="ENTER WORD"
               className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
               inputMode="none"
+              onFocus={(e) => e.target.blur()}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
             />
             <button
               onClick={submitWord}
@@ -274,6 +299,7 @@ export default function Page() {
             </button>
           </div>
 
+          {/* current seed */}
           <motion.div
             key={latestSeed}
             variants={popVariants}
@@ -286,21 +312,24 @@ export default function Page() {
           </motion.div>
         </div>
 
-        {/* History */}
+        {/* Past stack */}
         <div className="w-full max-w-md px-4 flex-1 overflow-hidden">
           <AnimatePresence initial={false}>
-            {history.map((w) => (
-              <motion.div
-                key={w}
-                variants={popVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-80"
-              >
-                {w}
-              </motion.div>
-            ))}
+            {stack
+              .slice(0, -1) // all but current
+              .reverse()
+              .map((w) => (
+                <motion.div
+                  key={w}
+                  variants={popVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-70"
+                >
+                  {w}
+                </motion.div>
+              ))}
           </AnimatePresence>
         </div>
 
@@ -308,7 +337,10 @@ export default function Page() {
         <div className="fixed bottom-24 left-0 right-0 flex flex-col items-center pointer-events-none">
           <div className="backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto">
             {KB_ROWS.map((row, idx) => (
-              <div key={idx} className="flex justify-center gap-2 mb-2 last:mb-0">
+              <div
+                key={idx}
+                className="flex justify-center gap-2 mb-2 last:mb-0"
+              >
                 {row.map((k) => {
                   const isEnter = k === 'ENTER';
                   const isDel = k === 'DEL';
@@ -333,14 +365,7 @@ export default function Page() {
         <div className="fixed bottom-4 left-0 right-0 flex justify-center">
           <div className="bg-[#334155]/80 backdrop-blur-sm rounded-3xl px-3 py-2 flex gap-3">
             <button
-              onClick={() => {
-                const text = `${nickname || 'Anon'} – ${
-                  gameMode === 'daily' ? 'Daily' : 'Endless'
-                } – Score ${score}\nPlay: https://lexit.uno`;
-                navigator.share
-                  ? navigator.share({ text })
-                  : navigator.clipboard.writeText(text);
-              }}
+              onClick={handleShare}
               className="h-10 px-4 rounded-xl bg-[#3BB2F6] text-white flex items-center gap-2"
             >
               <FaShareAlt /> Share
@@ -363,7 +388,7 @@ export default function Page() {
               href="/leaderboard"
               className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center gap-2"
             >
-              <FaListOl /> Board
+              <FaListUl /> Board
             </a>
           </div>
         </div>
@@ -372,7 +397,7 @@ export default function Page() {
   );
 }
 
-// ------------ Home screen ------------
+// -------------- Home screen --------------
 function HomeScreen({
   nickname,
   onNicknameChange,
@@ -387,10 +412,7 @@ function HomeScreen({
       <motion.div
         initial="hidden"
         animate="show"
-        variants={{
-          hidden: {},
-          show: { transition: { staggerChildren: 0.35 } },
-        }}
+        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }}
         className="w-full max-w-md px-6 space-y-6"
       >
         <motion.h1
@@ -431,12 +453,3 @@ function HomeScreen({
     </div>
   );
 }
-
-const childFall: Variants = {
-  hidden: { opacity: 0, y: -40 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring', stiffness: 200, damping: 18 },
-  },
-};
