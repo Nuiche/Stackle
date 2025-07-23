@@ -245,7 +245,7 @@ export default function Page() {
   const canSubmitScore = score > 0 && submitState !== 'saved';
 
   return (
-    <div className="min-h-screen flex flex-col items-center pb-40 relative">
+    <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
       <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
 
       {/* Back */}
@@ -414,7 +414,7 @@ function HomeScreen({
   onStart: (mode: GameMode) => void;
 }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative">
+    <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden overscroll-none">
       <motion.div
         initial="hidden"
         animate="show"
