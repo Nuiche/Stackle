@@ -1,109 +1,87 @@
 'use client'
-
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 type Props = {
-  open: boolean
+  url: string
   onClose: () => void
-  imageUrl: string
 }
 
-export default function ShareModal({ open, onClose, imageUrl }: Props) {
-  const [downloading, setDownloading] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-  const [error, setError] = useState(false)
+export default function ShareModal({ url, onClose }: Props) {
+  const [src, setSrc] = useState(url)
+  const [err, setErr] = useState(false)
 
-  if (!open) return null
+  useEffect(() => { setSrc(url); setErr(false) }, [url])
 
-  const copyImage = async () => {
+  async function handleError() {
     try {
-      const res = await fetch(imageUrl)
-      const blob = await res.blob()
-      // @ts-ignore ClipboardItem may not be typed
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
-      alert('Image copied to clipboard!')
+      const blob = await fetch(url, { cache: 'no-store' }).then(r => r.blob())
+      setSrc(URL.createObjectURL(blob))
     } catch {
-      alert('Copy failed. Download instead.')
+      setErr(true)
     }
   }
 
-  const downloadImage = async () => {
-    setDownloading(true)
+  async function handleCopy() {
     try {
-      const res = await fetch(imageUrl)
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'lexit-score.png'
-      a.click()
-      URL.revokeObjectURL(url)
-    } finally {
-      setDownloading(false)
+      const blob = await fetch(src).then(r => r.blob())
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type]: blob })
+      ])
+      alert('Copied to clipboard!')
+    } catch {
+      alert('Copy failed, use Download instead.')
     }
+  }
+
+  async function handleDownload() {
+    const a = document.createElement('a')
+    a.href = src
+    a.download = 'lexit-score.png'
+    a.click()
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center px-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-xl p-4 max-w-sm w-full relative"
-        onClick={e => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-white rounded-2xl p-6 w-[90%] max-w-md text-center relative">
         <button
           onClick={onClose}
-          className="absolute top-2 right-3 text-gray-400 text-xl"
+          className="absolute top-2 right-3 text-2xl text-gray-400"
           aria-label="Close"
         >
           ×
         </button>
+        <h2 className="text-2xl font-semibold text-[#334155] mb-4">Share Card</h2>
 
-        <h2 className="text-xl font-semibold text-[#334155] mb-3">
-          Share Card
-        </h2>
-
-        <div className="w-full border rounded overflow-hidden mb-4 min-h-[120px] flex items-center justify-center bg-gray-50">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt="Share card"
-            className={`w-full h-auto ${loaded && !error ? '' : 'hidden'}`}
-            onLoad={() => setLoaded(true)}
-            onError={() => setError(true)}
-          />
-          {!loaded && !error && (
-            <div className="text-sm text-gray-500">Generating…</div>
-          )}
-          {error && (
-            <div className="text-sm text-red-500 px-2 text-center">
+        <div className="border rounded-lg overflow-hidden mb-4 flex items-center justify-center h-48 bg-gray-100">
+          {!err ? (
+            <img
+              src={src}
+              alt="share"
+              className="max-h-full max-w-full object-contain"
+              onError={handleError}
+            />
+          ) : (
+            <div className="text-red-500 text-sm">
               Failed to load image.<br />
-              <a
-                href={imageUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="underline text-blue-500"
-              >
+              <a href={url} target="_blank" rel="noreferrer" className="underline">
                 Open in new tab
               </a>
             </div>
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-3 justify-center">
           <button
-            onClick={copyImage}
-            className="flex-1 py-2 rounded-lg bg-[#3BB2F6] text-white text-sm"
+            onClick={handleCopy}
+            className="px-5 py-3 rounded-lg bg-[#3BB2F6] text-white font-medium"
           >
             Copy
           </button>
           <button
-            onClick={downloadImage}
-            disabled={downloading}
-            className="flex-1 py-2 rounded-lg bg-[#10B981] text-white text-sm disabled:opacity-50"
+            onClick={handleDownload}
+            className="px-5 py-3 rounded-lg bg-[#10B981] text-white font-medium"
           >
-            {downloading ? '...' : 'Download'}
+            Download
           </button>
         </div>
       </div>

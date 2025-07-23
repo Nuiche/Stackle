@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import React from 'react'
 
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
@@ -11,7 +12,6 @@ function qp(sp: URLSearchParams, k: string, d = '') {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
 
-  // Debug helpers
   if (searchParams.get('debug') === '1') {
     return new Response(
       JSON.stringify(Object.fromEntries(searchParams.entries()), null, 2),
@@ -74,10 +74,13 @@ export async function GET(req: Request) {
           </div>
         </div>
       ),
-      { width: 1200, height: 630 }
+      {
+        width: 1200,
+        height: 630,
+        headers: { 'Cache-Control': 'no-store' }
+      }
     )
   } catch (e: any) {
-    // Return error so you SEE it in the browser
     return new Response(
       JSON.stringify({ error: e?.message ?? 'unknown', stack: e?.stack }),
       { status: 500, headers: { 'content-type': 'application/json' } }

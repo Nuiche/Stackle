@@ -199,6 +199,7 @@ export default function Page() {
       setShareUrl(`${origin}/api/share?${params.toString()}&t=${Date.now()}`)
       setShowShare(true)
 
+
       alert('Score submitted!')
     } catch (e) {
       console.error(e)
