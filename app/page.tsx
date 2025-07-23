@@ -17,6 +17,7 @@ type Screen = 'home' | 'nickname' | 'game'
 const MILESTONES = [5, 12, 21, 32, 45]
 const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
 const HELP_KEY = 'lexit_help_seen_v1'
+const MAX_LEN = 8
 
 export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
@@ -37,7 +38,6 @@ export default function Page() {
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  // Restore stored name if present (handle old key too)
   useEffect(() => {
     uidRef.current = getUserId()
     const stored =
@@ -48,7 +48,6 @@ export default function Page() {
     if (stored) setName(stored)
   }, [])
 
-  // Load dictionary
   useEffect(() => {
     fetch('/api/dictionary')
       .then(r => r.json())
@@ -61,7 +60,6 @@ export default function Page() {
       })
   }, [])
 
-  // Get top daily (for home screen display)
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
     getDailyLeaderboard(today, 1)
@@ -69,7 +67,6 @@ export default function Page() {
       .catch(() => {})
   }, [])
 
-  // Start game whenever we enter game screen or dictionary ready
   useEffect(() => {
     if (screen !== 'game') return
     startGame()
@@ -100,7 +97,6 @@ export default function Page() {
     }
   }
 
-  // Edit distance 1 check
   function isOneEditAway(a: string, b: string) {
     a = a.toUpperCase(); b = b.toUpperCase()
     if (a === b) return false
@@ -121,10 +117,10 @@ export default function Page() {
 
   const score = Math.max(stack.length - 1, 0)
 
-  // Submit typed word
   const submitWord = () => {
     const w = input.trim().toUpperCase()
     if (!w) return
+    if (w.length > MAX_LEN) { alert(`Max characters is ${MAX_LEN}.`); return }
     if (stack.includes(w)) { alert('You already used that word.'); return }
     if (!dictSet.current.has(w)) { alert('Not a valid English word.'); return }
     if (!isOneEditAway(stack[0], w)) { alert('Invalid move! Must be exactly one edit away.'); return }
@@ -134,7 +130,6 @@ export default function Page() {
     setInput('')
     const newScore = Math.max(newStack.length - 1, 0)
 
-    // Only persist name; delay score persistence until submit
     localStorage.setItem('lexit_name', name)
 
     if (navigator.vibrate) navigator.vibrate(15)
@@ -145,7 +140,9 @@ export default function Page() {
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') submitWord()
     if (e.key === 'Backspace') setInput(s => s.slice(0, -1))
-    if (/^[a-zA-Z]$/.test(e.key)) setInput(s => (s + e.key).toUpperCase())
+    if (/^[a-zA-Z]$/.test(e.key)) {
+      setInput(s => (s.length >= MAX_LEN ? s : (s + e.key).toUpperCase()))
+    }
   }
 
   const goMode = (m: GameMode) => {
@@ -185,14 +182,11 @@ export default function Page() {
     }
   }
 
-  // Back button logic: if not submitted, optionally discard
   const handleBackToHome = () => {
     if (!submittedScore && score > 0) {
       const ok = confirm('Leave game? Progress will be lost and not submitted.')
       if (!ok) return
     }
-    // Cleanup any temp score persistence if you added it
-    // localStorage.removeItem('lexit_last_score') // only if you were storing it
     setStack([])
     setInput('')
     setScreen('home')
@@ -241,7 +235,7 @@ export default function Page() {
   }
 
   // VK handlers
-  const vkOnChar  = (c: string) => setInput(s => (s + c).toUpperCase())
+  const vkOnChar  = (c: string) => setInput(s => (s.length >= MAX_LEN ? s : (s + c).toUpperCase()))
   const vkOnDelete= () => setInput(s => s.slice(0, -1))
   const vkOnEnter = () => submitWord()
   const activeChars = new Set(input.split(''))
@@ -257,7 +251,7 @@ export default function Page() {
             initial="hidden"
             animate="show"
             exit={{ opacity: 0, y: -30 }}
-            className="w-full max-w-md p-6 pt-16 text-center space-y-6 relative"
+            className="w-full max-w-md px-6 text-center space-y-6 relative flex flex-col justify-center min-h-[80vh]"
           >
             <motion.h1 variants={homeChild} className="text-3xl font-bold mb-2 text-[#334155]">
               Lexit
@@ -288,7 +282,7 @@ export default function Page() {
               </div>
             </motion.div>
 
-            {/* Subtle change nickname link */}
+            {/* Change nickname link (subtle, bottom-right) */}
             <motion.button
               variants={homeChild}
               onClick={() => setScreen('nickname')}
@@ -347,7 +341,7 @@ export default function Page() {
               Back
             </button>
 
-            {/* Scramble token button (if any) */}
+            {/* Scramble token button */}
             {tokensAvailable > 0 && (
               <motion.button
                 initial={{ scale: 0, opacity: 0 }}
@@ -420,7 +414,6 @@ export default function Page() {
               </AnimatePresence>
             </div>
 
-            {/* Virtual keyboard */}
             <VirtualKeyboard
               onChar={vkOnChar}
               onDelete={vkOnDelete}
