@@ -25,7 +25,7 @@ export default function VirtualKeyboard({
   const base =
     'flex items-center justify-center rounded-xl font-semibold text-xl h-14 active:scale-95 disabled:opacity-50 transition-transform select-none'
 
-  const renderKey = (k: string) => {
+  const keyBtn = (k: string) => {
     const active = activeChars?.has(k)
     return (
       <button
@@ -44,12 +44,16 @@ export default function VirtualKeyboard({
       <div className="space-y-2">
         {/* Row 1 */}
         <div className="grid grid-cols-10 gap-2">
-          {R1.map(renderKey)}
+          {R1.map(keyBtn)}
         </div>
 
-        {/* Row 2 (letters + delete on the right) */}
-        <div className="grid grid-cols-10 gap-2">
-          {R2.map(renderKey)}
+        {/* Row 2 (centered) */}
+        <div className="flex justify-center gap-2">
+          {R2.map(keyBtn)}
+        </div>
+
+        {/* Row 3: delete + letters + enter */}
+        <div className="grid grid-cols-9 gap-2">
           <button
             aria-label="Delete"
             disabled={disabled}
@@ -58,18 +62,14 @@ export default function VirtualKeyboard({
           >
             ⌫
           </button>
-        </div>
 
-        {/* Row 3 (letters + wide enter) */}
-        <div className="grid grid-cols-10 gap-2">
-          {R3.map(renderKey)}
-          {/* Fill up to 8 cols then enter spans the rest */}
-          <div className="col-span-1" />
+          {R3.map(keyBtn)}
+
           <button
             aria-label="Enter"
             disabled={disabled}
             onClick={onEnter}
-            className={`${base} col-span-2 bg-[#3BB2F6] text-white`}
+            className={`${base} bg-[#3BB2F6] text-white text-2xl`}
           >
             ↵
           </button>
