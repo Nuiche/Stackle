@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { getDailyLeaderboard, getEndlessLatest, getAllTime } from '@/lib/getLeaderboard'
 import { getTotalGames } from '@/lib/getTotalGames'
 
-export const revalidate = 120
+
+export const revalidate = 0;
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 

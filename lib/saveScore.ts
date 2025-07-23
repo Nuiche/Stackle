@@ -1,31 +1,29 @@
-import { db } from '@/lib/firebase'
+// lib/saveScore.ts
+import { db } from './firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { getUserId } from '@/lib/user'
 
-export async function saveScore({
-  mode,
-  score,
-  name,
-}: {
-  mode: 'daily' | 'endless'
+type Mode = 'daily' | 'endless'
+
+const dayKeyUTC = () =>
+  new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' }) // "2025-07-22"
+
+export async function saveScore(opts: {
   score: number
+  mode: Mode
   name: string
 }) {
-  const uid = getUserId()
-  const today = new Date().toISOString().slice(0, 10)
-
-  const payload = {
-    uid,
-    name: name.trim().slice(0, 16) || 'Anon',
-    mode,
-    score,
-    date: today,
-    createdAt: serverTimestamp(),
+  const { score, mode, name } = opts
+  try {
+    const docRef = await addDoc(collection(db, 'scores'), {
+      score,
+      mode,
+      name: name?.trim() || 'Anon',
+      dayKey: dayKeyUTC(),
+      createdAt: serverTimestamp()
+    })
+    return { ok: true, id: docRef.id }
+  } catch (e) {
+    console.error('saveScore error:', e)
+    return { ok: false, error: (e as Error).message }
   }
-
-  for (const [k, v] of Object.entries(payload)) {
-    if (v === undefined) throw new Error(`Field "${k}" is undefined`)
-  }
-
-  await addDoc(collection(db, 'scores'), payload)
 }
