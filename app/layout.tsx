@@ -1,12 +1,10 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
-import { Cinzel } from 'next/font/google'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://lexit.uno'),
   title: 'Lexit',
   description: 'Change one letter. Stack your way to the top.',
-  alternates: { canonical: '/' },
   openGraph: {
     url: 'https://lexit.uno',
     title: 'Lexit',
@@ -26,9 +24,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: '#3B82F6'
 }
-
-// Title font
-export const titleFont = Cinzel({ subsets: ['latin'], weight: ['700'] })
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

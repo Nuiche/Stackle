@@ -6,14 +6,13 @@ import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
 import VirtualKeyboard from '@/components/VirtualKeyboard'
 import HowToModal from '@/components/HowToModal'
+import ShareModal from '@/components/ShareModal'
 import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
 import { getUserId } from '@/lib/user'
 import { getDailyLeaderboard } from '@/lib/getLeaderboard'
 import { getESTDayKey } from '@/lib/dayKey'
-import { Cinzel } from 'next/font/google'
-const titleFont = Cinzel({ subsets: ['latin'], weight: ['700'] })
-
+import { titleFont } from '@/lib/fonts'
 
 type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
@@ -38,6 +37,9 @@ export default function Page() {
   const [scramblesUsed, setScramblesUsed] = useState(0)
   const [showHelp, setShowHelp] = useState(false)
   const [submittedScore, setSubmittedScore] = useState(false)
+  const [showShare, setShowShare] = useState(false)
+  const [shareUrl, setShareUrl] = useState('')
+  const [dayKey, setDayKey] = useState('')
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
@@ -64,7 +66,6 @@ export default function Page() {
       })
   }, [])
 
-  // Use EST date for daily top display
   useEffect(() => {
     const todayEST = getESTDayKey()
     getDailyLeaderboard(todayEST, 1)
@@ -84,9 +85,11 @@ export default function Page() {
       if (mode === 'daily') {
         const d = await (await fetch('/api/seed')).json()
         setStack([d.seed])
+        setDayKey(d.dayKey || '')
       } else {
         const list = dictionary.length ? dictionary : FALLBACK_SEEDS
         setStack([list[Math.floor(Math.random() * list.length)]])
+        setDayKey('')
       }
       setInput('')
       setScramblesUsed(0)
@@ -178,6 +181,17 @@ export default function Page() {
     try {
       await saveScore({ mode, score, name })
       setSubmittedScore(true)
+
+      // Build share card URL
+      const params = new URLSearchParams({
+        name,
+        score: String(score),
+        mode
+      })
+      if (dayKey) params.set('date', dayKey)
+      setShareUrl(`/api/share?${params.toString()}`)
+      setShowShare(true)
+
       alert('Score submitted!')
     } catch (e) {
       console.error(e)
@@ -210,7 +224,6 @@ export default function Page() {
     burst()
   }
 
-  // Animation variants
   const homeParent: Variants = {
     hidden: { opacity: 0, y: -60 },
     show: {
@@ -239,7 +252,6 @@ export default function Page() {
     }
   }
 
-  // VK handlers
   const vkOnChar  = (c: string) => setInput(s => (s.length >= MAX_LEN ? s : (s + c).toUpperCase()))
   const vkOnDelete= () => setInput(s => s.slice(0, -1))
   const vkOnEnter = () => submitWord()
@@ -290,7 +302,6 @@ export default function Page() {
               </div>
             </motion.div>
 
-            {/* Change nickname link */}
             <motion.button
               variants={homeChild}
               onClick={() => setScreen('nickname')}
@@ -341,120 +352,119 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-          {/* Back button */}
-          <button
-            onClick={handleBackToHome}
-            className="fixed top-4 right-4 z-50 text-sm underline text-gray-500"
-          >
-            Back
-          </button>
-
-          {/* Scramble */}
-          {tokensAvailable > 0 && (
-            <motion.button
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleScramble}
-              className="fixed top-4 left-4 w-12 h-12 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center z-50"
-              aria-label="Scramble seed"
+            <button
+              onClick={handleBackToHome}
+              className="fixed top-4 right-4 z-50 text-sm underline text-gray-500"
             >
-              <img src="/icons/reset.png" alt="Scramble" className="w-8 h-8" />
-            </motion.button>
-          )}
+              Back
+            </button>
 
-          <div className="mt-[7vh] mb-4">
-            <div className="mb-2 flex space-x-2 items-center">
-              <div className="relative flex-1">
-                <input
-                  ref={inputRef}
-                  readOnly
-                  inputMode="none"
-                  value={input}
-                  onKeyDown={onKeyDown}
-                  className="w-full p-3 pr-14 border-2 border-[#334155] rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-[#3BB2F6] bg-[#F1F5F9] select-none"
-                  placeholder={loadingSeed ? 'LOADING…' : 'ENTER WORD'}
-                  onFocus={e => e.currentTarget.blur()}
-                />
-                <span className="absolute inset-y-0 right-3 flex items-center text-[#334155] font-semibold">
-                  {score}
-                </span>
-              </div>
+            {tokensAvailable > 0 && (
               <motion.button
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
                 whileTap={{ scale: 0.9 }}
-                animate={sendSpin ? { rotate: 360 } : { rotate: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                onClick={submitWord}
-                disabled={loadingSeed}
-                className="px-5 py-3 rounded-lg bg-[#3BB2F6] text-white text-xl flex items-center justify-center disabled:opacity-50"
-                aria-label="Submit word"
+                onClick={handleScramble}
+                className="fixed top-4 left-4 w-12 h-12 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center z-50"
+                aria-label="Scramble seed"
               >
-                <FaPaperPlane />
+                <img src="/icons/reset.png" alt="Scramble" className="w-8 h-8" />
               </motion.button>
-            </div>
-
-            {stack[0] && !loadingSeed && (
-              <div className="mb-2">
-                <div className="w-full text-center py-3 rounded-lg bg-[#334155] text-white text-2xl font-semibold tracking-widest">
-                  {stack[0]}
-                </div>
-              </div>
             )}
-          </div>
 
-          <div className="flex-1 overflow-y-auto mt-2 space-y-3 pb-72">
-            <AnimatePresence initial={false}>
-              {stack.slice(1).map((word, i) => (
-                <motion.div
-                  key={`${word}-${i}`}
-                  layout
-                  initial="hidden"
-                  animate="show"
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  variants={popVariants}
-                  className="stack-item p-4 rounded-lg shadow bg-[#10B981] text-white text-lg"
+            <div className="mt-[7vh] mb-4">
+              <div className="mb-2 flex space-x-2 items-center">
+                <div className="relative flex-1">
+                  <input
+                    ref={inputRef}
+                    readOnly
+                    inputMode="none"
+                    value={input}
+                    onKeyDown={onKeyDown}
+                    className="w-full p-3 pr-14 border-2 border-[#334155] rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-[#3BB2F6] bg-[#F1F5F9] select-none"
+                    placeholder={loadingSeed ? 'LOADING…' : 'ENTER WORD'}
+                    onFocus={e => e.currentTarget.blur()}
+                  />
+                  <span className="absolute inset-y-0 right-3 flex items-center text-[#334155] font-semibold">
+                    {score}
+                  </span>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  animate={sendSpin ? { rotate: 360 } : { rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                  onClick={submitWord}
+                  disabled={loadingSeed}
+                  className="px-5 py-3 rounded-lg bg-[#3BB2F6] text-white text-xl flex items-center justify-center disabled:opacity-50"
+                  aria-label="Submit word"
                 >
-                  {word}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+                  <FaPaperPlane />
+                </motion.button>
+              </div>
 
-          <VirtualKeyboard
-            onChar={vkOnChar}
-            onDelete={vkOnDelete}
-            onEnter={vkOnEnter}
-            disabled={loadingSeed}
-            activeChars={activeChars}
-          />
-
-          <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">
-            <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
-              <button
-                onClick={handleShare}
-                className="flex-1 py-2 bg-[#3BB2F6] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
-              >
-                <FaShareAlt /> <span>Share</span>
-              </button>
-              <button
-                onClick={handleSubmitScore}
-                disabled={isSaving || submittedScore}
-                className="flex-1 py-2 bg-[#10B981] text-white rounded-lg flex items-center justify-center space-x-1 text-sm disabled:opacity-60"
-              >
-                <FaTrophy /> <span>{isSaving ? 'Saving…' : submittedScore ? 'Saved' : 'Submit'}</span>
-              </button>
-              <Link
-                href="/leaderboard"
-                className="flex-1 py-2 bg-[#334155] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
-              >
-                <span>Board</span>
-              </Link>
+              {stack[0] && !loadingSeed && (
+                <div className="mb-2">
+                  <div className="w-full text-center py-3 rounded-lg bg-[#334155] text-white text-2xl font-semibold tracking-widest">
+                    {stack[0]}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
 
-          <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
-        </motion.div>
+            <div className="flex-1 overflow-y-auto mt-2 space-y-3 pb-72">
+              <AnimatePresence initial={false}>
+                {stack.slice(1).map((word, i) => (
+                  <motion.div
+                    key={`${word}-${i}`}
+                    layout
+                    initial="hidden"
+                    animate="show"
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    variants={popVariants}
+                    className="stack-item p-4 rounded-lg shadow bg-[#10B981] text-white text-lg"
+                  >
+                    {word}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            <VirtualKeyboard
+              onChar={vkOnChar}
+              onDelete={vkOnDelete}
+              onEnter={vkOnEnter}
+              disabled={loadingSeed}
+              activeChars={activeChars}
+            />
+
+            <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">
+              <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
+                <button
+                  onClick={handleShare}
+                  className="flex-1 py-2 bg-[#3BB2F6] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
+                >
+                  <FaShareAlt /> <span>Share</span>
+                </button>
+                <button
+                  onClick={handleSubmitScore}
+                  disabled={isSaving || submittedScore}
+                  className="flex-1 py-2 bg-[#10B981] text-white rounded-lg flex items-center justify-center space-x-1 text-sm disabled:opacity-60"
+                >
+                  <FaTrophy /> <span>{isSaving ? 'Saving…' : submittedScore ? 'Saved' : 'Submit'}</span>
+                </button>
+                <Link
+                  href="/leaderboard"
+                  className="flex-1 py-2 bg-[#334155] text-white rounded-lg flex items-center justify-center space-x-1 text-sm"
+                >
+                  <span>Board</span>
+                </Link>
+              </div>
+            </div>
+
+            <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
+            <ShareModal open={showShare} onClose={() => setShowShare(false)} imageUrl={shareUrl} />
+          </motion.div>
         )}
       </AnimatePresence>
     </main>
