@@ -1,25 +1,34 @@
-import { db } from './firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { getESTDayKey } from './dayKey'
+// lib/saveScore.ts
+export type SaveScorePayload = {
+  name: string;
+  mode: 'daily' | 'endless';
+  score: number;
+  seed: string;
+  dayKey?: string;
+};
 
-type Payload = {
-  mode: 'daily' | 'endless'
-  score: number
-  name: string
-  seed: string
-}
+export type SaveScoreResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string };
 
-export async function saveScore({ mode, score, name, seed }: Payload) {
-  const scores = collection(db, 'scores')
-  const data: any = {
-    mode,
-    score,
-    name: name?.trim() || 'Anon',
-    seed,
-    createdAt: serverTimestamp()
+export async function saveScore(
+  payload: SaveScorePayload
+): Promise<SaveScoreResult> {
+  const res = await fetch('/api/submit-score', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  let json: any = {};
+  try {
+    json = await res.json();
+  } catch {
+    // ignore
   }
-  if (mode === 'daily') {
-    data.dayKey = getESTDayKey()
+
+  if (!res.ok) {
+    return { ok: false, error: json?.error || res.statusText };
   }
-  await addDoc(scores, data)
+  return { ok: true, id: json?.id || '' };
 }
