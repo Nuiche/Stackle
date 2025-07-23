@@ -1,48 +1,56 @@
-'use client'
-import React, { useEffect, useState } from 'react'
+'use client';
+import React, { useEffect, useState } from 'react';
 
 type Props = {
-  url: string
-  onClose: () => void
-}
+  open: boolean;              // you pass this from page.tsx
+  imageUrl: string;           // same
+  onClose: () => void;
+};
 
-export default function ShareModal({ url, onClose }: Props) {
-  const [src, setSrc] = useState(url)
-  const [err, setErr] = useState(false)
+export default function ShareModal({ open, imageUrl, onClose }: Props) {
+  const [src, setSrc] = useState(imageUrl);
+  const [err, setErr] = useState(false);
 
-  useEffect(() => { setSrc(url); setErr(false) }, [url])
+  // keep src in sync
+  useEffect(() => {
+    setSrc(imageUrl);
+    setErr(false);
+  }, [imageUrl]);
 
-  async function handleError() {
+  if (!open) return null; // just don’t render when closed
+
+  async function retryFetch() {
     try {
-      const blob = await fetch(url, { cache: 'no-store' }).then(r => r.blob())
-      setSrc(URL.createObjectURL(blob))
+      const blob = await fetch(imageUrl, { cache: 'no-store' }).then(r => r.blob());
+      setSrc(URL.createObjectURL(blob));
+      setErr(false);
     } catch {
-      setErr(true)
+      setErr(true);
     }
   }
 
   async function handleCopy() {
     try {
-      const blob = await fetch(src).then(r => r.blob())
+      const blob = await fetch(src).then(r => r.blob());
       await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type]: blob })
-      ])
-      alert('Copied to clipboard!')
+        new ClipboardItem({ [blob.type]: blob }),
+      ]);
+      alert('Copied to clipboard!');
     } catch {
-      alert('Copy failed, use Download instead.')
+      alert('Copy failed, try Download.');
     }
   }
 
-  async function handleDownload() {
-    const a = document.createElement('a')
-    a.href = src
-    a.download = 'lexit-score.png'
-    a.click()
+  function handleDownload() {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = 'lexit-score.png';
+    a.click();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white rounded-2xl p-6 w-[90%] max-w-md text-center relative">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
+      <div className="bg-white rounded-2xl p-6 w-[90%] max-w-md text-center relative shadow-2xl">
         <button
           onClick={onClose}
           className="absolute top-2 right-3 text-2xl text-gray-400"
@@ -58,12 +66,18 @@ export default function ShareModal({ url, onClose }: Props) {
               src={src}
               alt="share"
               className="max-h-full max-w-full object-contain"
-              onError={handleError}
+              onError={retryFetch}
             />
           ) : (
             <div className="text-red-500 text-sm">
-              Failed to load image.<br />
-              <a href={url} target="_blank" rel="noreferrer" className="underline">
+              Failed to load image.
+              <br />
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline text-blue-600"
+              >
                 Open in new tab
               </a>
             </div>
@@ -86,5 +100,5 @@ export default function ShareModal({ url, onClose }: Props) {
         </div>
       </div>
     </div>
-  )
+  );
 }
