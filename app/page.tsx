@@ -203,7 +203,10 @@ export default function Page() {
     const text = `I scored ${score} in ${
       gameMode === 'daily' ? 'the Daily Challenge' : 'Endless Mode'
     } on Lexit!`;
-    const url = typeof window !== 'undefined' ? window.location.origin : '';
+    const base =
+  process.env.NEXT_PUBLIC_BASE_URL ??
+  (typeof window !== 'undefined' ? window.location.origin : '');
+  const url = base;
     if (navigator.share) {
       navigator
         .share({ text, url })
