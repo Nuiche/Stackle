@@ -33,7 +33,7 @@ export default function LeaderboardPage() {
 
   const Section = ({ title, rows }: { title: string; rows: Row[] }) => (
     <section className="mb-8">
-      <h2 className="text-2xl font-bold mb-3 text-blue-600">{title}</h2>
+      <h2 className="text-xl font-bold mb-3 text-gray-900 dark:text-gray-100">{title}</h2>
       {rows.length === 0 ? (
         <p className="text-sm text-gray-400">No scores yet.</p>
       ) : (
@@ -41,11 +41,11 @@ export default function LeaderboardPage() {
           {rows.map((r, i) => {
             const medal =
               i === 0
-                ? 'bg-yellow-400 text-black'
+                ? 'bg-yellow-400/70 text-black'
                 : i === 1
-                ? 'bg-gray-300 text-black'
+                ? 'bg-gray-300/70 text-black'
                 : i === 2
-                ? 'bg-orange-400 text-black'
+                ? 'bg-orange-400/70 text-black'
                 : 'bg-white text-gray-900'
 
             return (
@@ -80,7 +80,7 @@ export default function LeaderboardPage() {
 
       {/* Banner */}
       <div className="mb-8">
-        <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-green-500 px-4 py-4 shadow-lg text-center">
+        <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-green-500 px-4 py-5 shadow-lg text-center">
           <h1 className="text-4xl font-extrabold text-white tracking-wide">
             Global Rankings
           </h1>

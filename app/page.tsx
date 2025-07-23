@@ -35,12 +35,14 @@ export default function Page() {
   const [isSaving, setIsSaving] = useState(false)
   const [sendSpin, setSendSpin] = useState(false)
   const [loadingSeed, setLoadingSeed] = useState(false)
+  const [ripple, setRipple] = useState(false)
 
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
+  /* ---------- init ---------- */
   useEffect(() => {
     uidRef.current = getUserId()
     const stored = typeof window !== 'undefined'
@@ -94,6 +96,7 @@ export default function Page() {
     }
   }
 
+  /* ---------- validation ---------- */
   function isOneEditAway(a: string, b: string): boolean {
     a = a.toUpperCase()
     b = b.toUpperCase()
@@ -121,7 +124,6 @@ export default function Page() {
     const w = input.trim().toUpperCase()
     if (!w) return
 
-    // no duplicates in this run
     if (stack.includes(w)) {
       alert('You already used that word.')
       return
@@ -145,7 +147,11 @@ export default function Page() {
       if (wordsStacked > 0 && wordsStacked % 5 === 0) burst()
 
       setSendSpin(true)
-      setTimeout(() => setSendSpin(false), 400)
+      setRipple(true)
+      setTimeout(() => {
+        setSendSpin(false)
+        setRipple(false)
+      }, 300)
     } else {
       gaEvent('invalid_move', { attempted: w, from: seed, mode })
       alert('Invalid move! Must be exactly one edit away.')
@@ -198,10 +204,11 @@ export default function Page() {
   }
 
   const handleSubmitScore = async () => {
+    const score = Math.max(stack.length - 1, 0)
     setIsSaving(true)
     try {
-      await saveScore({ mode, score: Math.max(stack.length - 1, 0), name })
-      gaEvent('score_submit', { score: Math.max(stack.length - 1, 0), mode })
+      await saveScore({ mode, score, name })
+      gaEvent('score_submit', { score, mode })
       alert('Score submitted!')
     } catch (e) {
       console.error(e)
@@ -209,6 +216,16 @@ export default function Page() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  /* ---------- animation variants ---------- */
+  const listVariants = {
+    ripple: {
+      transition: { staggerChildren: 0.03 },
+    },
+  }
+  const itemVariants = {
+    ripple: { y: [0, 6, 0], transition: { duration: 0.25 } },
   }
 
   return (
@@ -294,7 +311,7 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-          {/* Sticky top */}
+            {/* Sticky top */}
             <div className="sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-3">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
@@ -334,24 +351,29 @@ export default function Page() {
               )}
             </div>
 
-            {/* Past words */}
-            <div className="mt-2 space-y-2 pb-28">
+            {/* Past words list with ripple */}
+            <motion.div
+              className="mt-2 space-y-2 pb-28"
+              variants={listVariants}
+              animate={ripple ? 'ripple' : undefined}
+            >
               <AnimatePresence initial={false}>
                 {stack.slice(1).map((word, i) => (
                   <motion.div
                     key={`${word}-${i}`}
                     layout
-                    initial={{ opacity: 0, y: -20, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    initial={{ opacity: 0, scale: 0.6, y: -30 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                    variants={itemVariants}
                     className="p-4 rounded-lg shadow bg-green-500 text-white text-lg"
                   >
                     {word}
                   </motion.div>
                 ))}
               </AnimatePresence>
-            </div>
+            </motion.div>
 
             {/* Bottom bar */}
             <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3">
