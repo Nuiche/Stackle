@@ -1,32 +1,37 @@
 // lib/saveScore.ts
 import { db } from './firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
-export type SaveScorePayload = {
+export type GameMode = 'daily' | 'endless';
+
+export interface SaveScorePayload {
   name: string;
-  mode: 'daily' | 'endless';
+  mode: GameMode;
   score: number;
-  seed: string;        // end seed
-  startSeed: string;   // starting seed
+  startSeed: string;
+  endSeed: string;
   dayKey?: string;
-};
+}
 
-export type SaveScoreResult =
-  | { ok: true; id: string }
-  | { ok: false; error: string };
+export interface SaveScoreResult {
+  ok: boolean;
+  error?: string;
+}
 
-export async function saveScore(
-  payload: SaveScorePayload
-): Promise<SaveScoreResult> {
+export async function saveScore(payload: SaveScorePayload): Promise<SaveScoreResult> {
   try {
-    const ref = await addDoc(collection(db, 'scores'), {
-      ...payload,
+    await addDoc(collection(db, 'scores'), {
+      name: payload.name,
+      mode: payload.mode,
+      score: payload.score,
+      startSeed: payload.startSeed,
+      endSeed: payload.endSeed,
+      dayKey: payload.dayKey ?? null,
       createdAt: serverTimestamp(),
-      _name_: payload.name.toLowerCase(),
     });
-    return { ok: true, id: ref.id };
+    return { ok: true };
   } catch (e: any) {
-    console.error('saveScore error:', e);
+    console.error('saveScore error', e);
     return { ok: false, error: e?.message || 'unknown' };
   }
 }

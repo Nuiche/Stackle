@@ -8,83 +8,99 @@ import {
   getAllTime,
   Row,
 } from '@/lib/getLeaderboard';
-import { getESTDayKey } from '@/lib/dayKey';
+import { getTotalGames } from '@/lib/getTotalGames';
+import { dayKey as getESTDayKey } from '@/lib/dayKey';
 
 export default function LeaderboardClient() {
   const [daily, setDaily] = useState<Row[]>([]);
   const [endless, setEndless] = useState<Row[]>([]);
   const [allTime, setAllTime] = useState<Row[]>([]);
+  const [totalGames, setTotalGames] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const dayKey = getESTDayKey();
-      const [d, e, a] = await Promise.all([
-        getDailyLeaderboard(dayKey),
-        getEndlessLatest(),
-        getAllTime(),
-      ]);
-      setDaily(d);
-      setEndless(e);
-      setAllTime(a);
-      setLoading(false);
-    })();
+    const run = async () => {
+      try {
+        const dk = getESTDayKey();
+        const [d, e, a, tg] = await Promise.all([
+          getDailyLeaderboard(dk),
+          getEndlessLatest(),
+          getAllTime(),
+          getTotalGames(),
+        ]);
+        setDaily(d);
+        setEndless(e);
+        setAllTime(a);
+        setTotalGames(tg);
+      } catch (e) {
+        console.error('Leaderboard load error', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
   }, []);
-
-  const renderSection = (title: string, rows: Row[]) => (
-    <section className="mb-8">
-      <h2 className="text-xl font-bold mb-3 text-[#334155]">{title}</h2>
-      <div className="space-y-2">
-        {rows.map((r, idx) => {
-          const start = r.startSeed?.toUpperCase() ?? r.seed?.toUpperCase() ?? '';
-          const end = r.seed?.toUpperCase() ?? '';
-          return (
-            <div
-              key={r.id}
-              className="flex items-center justify-between bg-white rounded-lg px-3 py-2 shadow"
-            >
-              <div className="flex-1 mr-2 truncate text-[#334155] font-medium">
-                #{idx + 1} {r.name}
-              </div>
-              <div className="flex items-center gap-2 text-sm text-[#334155]">
-                <span className="px-2 py-1 rounded-md bg-[#334155] text-white">
-                  {start}
-                </span>
-                <span>–</span>
-                <span className="px-2 py-1 rounded-md bg-[#334155] text-white">
-                  {end}
-                </span>
-                <span className="font-bold ml-2">{r.score}</span>
-              </div>
-            </div>
-          );
-        })}
-        {!rows.length && (
-          <div className="text-center text-sm text-gray-500">No scores yet.</div>
-        )}
-      </div>
-    </section>
-  );
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F1F5F9] text-gray-500">
+      <div className="min-h-screen flex items-center justify-center text-[#334155]">
         Loading…
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#F1F5F9] text-[#334155] p-4 pb-16">
-      <Link href="/" className="inline-block mb-4 underline text-[#334155]">
+    <div className="min-h-screen max-w-xl mx-auto px-4 py-6 text-[#334155]">
+      <Link href="/" className="text-sm underline">
         ← Back
       </Link>
 
-      <h1 className="text-3xl font-bold mb-6 text-[#334155]">Global Rankings</h1>
+      <h1 className="text-3xl font-bold text-center mb-6">Global Rankings</h1>
 
-      {renderSection('Daily Challenge', daily)}
-      {renderSection('Endless', endless)}
-      {renderSection('All Time', allTime)}
-    </main>
+      <Section title="Daily Challenge" rows={daily} />
+      <Section title="Endless" rows={endless} />
+      <Section title="All Time (Top 20)" rows={allTime} />
+
+      <div className="text-xs text-right mt-10 text-[#334155]/70">
+        Total games played: {totalGames}
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, rows }: { title: string; rows: Row[] }) {
+  return (
+    <section className="mb-8">
+      <h2 className="text-2xl font-bold mb-3">{title}</h2>
+      {rows.length === 0 && (
+        <div className="text-sm italic mb-4">No scores yet.</div>
+      )}
+      <ul>
+        {rows.map((r, idx) => (
+          <li
+            key={r.id}
+            className={`flex justify-between items-center py-1 px-2 rounded-md mb-1 ${
+              idx === 0
+                ? 'bg-yellow-100'
+                : idx === 1
+                ? 'bg-gray-200'
+                : idx === 2
+                ? 'bg-orange-100'
+                : 'bg-transparent'
+            }`}
+          >
+            <span className="w-8 font-semibold">#{idx + 1}</span>
+            <span className="flex-1 truncate">{r.name}</span>
+            <span className="flex items-center gap-2">
+              {/* seed chip */}
+              <span className="px-2 py-0.5 rounded bg-[#334155] text-white text-xs font-semibold">
+                {r.startSeed}–{r.endSeed}
+              </span>
+              <span className="w-6 text-right">{r.score}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

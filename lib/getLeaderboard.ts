@@ -2,24 +2,24 @@
 import { db } from './firebase';
 import {
   collection,
+  getDocs,
   query,
   where,
   orderBy,
   limit,
-  getDocs,
-  Timestamp,
 } from 'firebase/firestore';
+import { GameMode } from './saveScore';
 
-export type Row = {
+export interface Row {
   id: string;
   name: string;
   score: number;
-  mode: 'daily' | 'endless';
-  seed: string;
-  startSeed?: string;
-  dayKey?: string;
-  createdAt?: Timestamp;
-};
+  mode: GameMode;
+  startSeed: string;
+  endSeed: string;
+  dayKey?: string | null;
+  createdAt?: any;
+}
 
 const scoresRef = collection(db, 'scores');
 
@@ -32,7 +32,8 @@ export async function getDailyLeaderboard(dayKey: string): Promise<Row[]> {
     orderBy('createdAt', 'asc'),
     limit(50)
   );
-  return docsToRows(await getDocs(q));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Row[];
 }
 
 export async function getEndlessLatest(): Promise<Row[]> {
@@ -42,7 +43,8 @@ export async function getEndlessLatest(): Promise<Row[]> {
     orderBy('createdAt', 'desc'),
     limit(20)
   );
-  return docsToRows(await getDocs(q));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Row[];
 }
 
 export async function getAllTime(): Promise<Row[]> {
@@ -50,23 +52,8 @@ export async function getAllTime(): Promise<Row[]> {
     scoresRef,
     orderBy('score', 'desc'),
     orderBy('createdAt', 'asc'),
-    limit(50)
+    limit(20)
   );
-  return docsToRows(await getDocs(q));
-}
-
-function docsToRows(snapshot: Awaited<ReturnType<typeof getDocs>>): Row[] {
-  return snapshot.docs.map((d) => {
-    const data = d.data() as any;
-    return {
-      id: d.id,
-      name: data.name || 'Anon',
-      score: data.score || 0,
-      mode: data.mode,
-      seed: data.seed,
-      startSeed: data.startSeed,
-      dayKey: data.dayKey,
-      createdAt: data.createdAt,
-    };
-  });
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Row[];
 }
