@@ -22,10 +22,11 @@ export default function VirtualKeyboard({
   disabled,
   activeChars
 }: Props) {
-  const base =
-    'flex items-center justify-center rounded-xl font-semibold text-xl h-14 w-full active:scale-95 disabled:opacity-50 transition-transform select-none'
 
-  const Key = (k: string) => {
+  const base =
+    'flex items-center justify-center rounded-xl font-semibold text-xl h-14 active:scale-95 disabled:opacity-50 transition-transform select-none'
+
+  const renderKey = (k: string) => {
     const active = activeChars?.has(k)
     return (
       <button
@@ -42,14 +43,15 @@ export default function VirtualKeyboard({
   return (
     <div className="fixed bottom-20 left-0 right-0 mx-auto max-w-md px-3 z-50 pointer-events-auto">
       <div className="space-y-2">
-        {/* row 1 */}
+        {/* Row 1 */}
         <div className="grid grid-cols-10 gap-2">
-          {R1.map(Key)}
+          {R1.map(renderKey)}
         </div>
-        {/* row 2 */}
+
+        {/* Row 2 */}
         <div className="grid grid-cols-10 gap-2">
-          <div />{/* spacer */}
-          {R2.map(Key)}
+          <div /> {/* spacer to center row */}
+          {R2.map(renderKey)}
           <button
             aria-label="Delete"
             disabled={disabled}
@@ -59,9 +61,10 @@ export default function VirtualKeyboard({
             ⌫
           </button>
         </div>
-        {/* row 3 */}
+
+        {/* Row 3 */}
         <div className="grid grid-cols-9 gap-2">
-          {R3.map(Key)}
+          {R3.map(renderKey)}
           <button
             aria-label="Enter"
             disabled={disabled}

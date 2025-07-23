@@ -6,11 +6,12 @@ import { getTotalGames } from '@/lib/getTotalGames'
 
 export const revalidate = 120
 
-const todayISO = () => new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+const todayISO = () => new Date().toISOString().slice(0, 10)
+
+type RowType = { id: string; name?: string; score: number }
 
 export default async function LeaderboardPage() {
   const today = todayISO()
-
   const [daily, endless, allTime, total] = await Promise.all([
     getDailyLeaderboard(today, 20),
     getEndlessLatest(20),
@@ -18,63 +19,40 @@ export default async function LeaderboardPage() {
     getTotalGames(),
   ])
 
-  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <section className="mt-6">
-      <h2 className="text-[#334155] font-semibold text-lg mb-2">{title}</h2>
-      {children}
-    </section>
-  )
-
-  const Row = ({ i, n, s }: { i: number; n: string; s: number }) => (
-    <div className="flex justify-between py-1 text-sm">
-      <span className="w-8">#{i + 1}</span>
-      <span className="flex-1 truncate px-2">{n || 'Anon'}</span>
-      <span className="w-8 text-right">{s}</span>
-    </div>
-  )
-
   const podiumBg = (i: number) =>
     i === 0 ? 'bg-[#FFD70033]'
       : i === 1 ? 'bg-[#C0C0C033]'
       : i === 2 ? 'bg-[#CD7F3233]'
       : ''
 
+  const Section = ({ title, rows }: { title: string; rows: RowType[] }) => (
+    <section className="mt-8">
+      <h2 className="text-2xl font-semibold text-[#334155] mb-3">{title}</h2>
+      {rows.length === 0 && <p className="text-sm text-gray-500">No scores yet.</p>}
+      <div className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+        {rows.map((r, i) => (
+          <div key={r.id} className={`grid grid-cols-[40px_1fr_40px] px-3 py-2 text-sm ${podiumBg(i)}`}>
+            <span className="text-[#334155] font-medium">#{i + 1}</span>
+            <span className="truncate px-2">{(r.name && r.name.trim()) || 'Anon'}</span>
+            <span className="text-right font-semibold">{r.score}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#FAFAFA] to-[#CFCFCF] px-4 py-6">
+    <main className="min-h-screen bg-[#F1F5F9] px-4 py-6">
       <div className="max-w-md mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-4 text-white py-2 rounded-xl bg-gradient-to-r from-[#3BB2F6] to-[#10B981] shadow-lg">
+        <h1 className="text-3xl font-bold text-center mb-6 text-white py-2 rounded-xl bg-gradient-to-r from-[#3BB2F6] to-[#10B981] shadow-lg">
           Global Rankings
         </h1>
 
         <Link href="/" className="text-sm underline text-gray-500">← Back</Link>
 
-        <Section title="Daily Challenge">
-          {daily.length === 0 && <p className="text-sm text-gray-500">No scores yet.</p>}
-          <div>
-            {daily.map((r, i) => (
-              <div key={r.id} className={`${podiumBg(i)} rounded`}>
-                <Row key={r.id} i={i} n={r.name ?? 'Anon'} s={r.score} />
-
-              </div>
-            ))}
-          </div>
-        </Section>
-
-        <Section title="Endless">
-          {endless.length === 0 && <p className="text-sm text-gray-500">No scores yet.</p>}
-          <div>
-            {endless.map((r, i) => <Row key={r.id} i={i} n={r.name ?? 'Anon'} s={r.score} />
-)}
-          </div>
-        </Section>
-
-        <Section title="All Time (Top 20)">
-          {allTime.length === 0 && <p className="text-sm text-gray-500">No scores yet.</p>}
-          <div>
-            {allTime.map((r, i) => <Row key={r.id} i={i} n={r.name ?? 'Anon'} s={r.score} />
-)}
-          </div>
-        </Section>
+        <Section title="Daily Challenge" rows={daily} />
+        <Section title="Endless" rows={endless} />
+        <Section title="All Time (Top 20)" rows={allTime} />
 
         <footer className="text-[10px] text-gray-600 text-right mt-8">
           Total games played: {total.toLocaleString()}
