@@ -10,9 +10,9 @@ type Props = {
   activeChars?: Set<string>
 }
 
-const R1 = ['Q','W','E','R','T','Y','U','I','O','P']
-const R2 = ['A','S','D','F','G','H','J','K','L']
-const R3 = ['Z','X','C','V','B','N','M']
+const R1 = ['Q','W','E','R','T','Y','U','I','O','P']          // 10 keys
+const R2 = ['A','S','D','F','G','H','J','K','L']              // 9 keys
+const R3 = ['Z','X','C','V','B','N','M']                      // 7 keys
 
 export default function VirtualKeyboard({
   onChar,
@@ -42,17 +42,17 @@ export default function VirtualKeyboard({
   return (
     <div className="fixed bottom-20 left-0 right-0 mx-auto max-w-md px-3 z-50 pointer-events-auto">
       <div className="space-y-2">
-        {/* Row 1 */}
+        {/* Row 1: 10 equal columns */}
         <div className="grid grid-cols-10 gap-2">
           {R1.map(keyBtn)}
         </div>
 
-        {/* Row 2 (centered) */}
-        <div className="flex justify-center gap-2">
+        {/* Row 2: 9 equal columns (no squeezing) */}
+        <div className="grid grid-cols-9 gap-2">
           {R2.map(keyBtn)}
         </div>
 
-        {/* Row 3: delete + letters + enter */}
+        {/* Row 3: delete + 7 letters + enter = 9 equal columns */}
         <div className="grid grid-cols-9 gap-2">
           <button
             aria-label="Delete"
