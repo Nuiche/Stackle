@@ -6,7 +6,6 @@ import React, {
   useEffect,
   useRef,
   KeyboardEvent,
-  ChangeEvent,
 } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -24,7 +23,7 @@ import { getDailyLeaderboard } from '@/lib/getLeaderboard'
 type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
 
-const MILESTONES = [5, 12, 21, 32]
+const MILESTONES = [5, 12, 21, 32, 45]
 const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
 
 export default function Page() {
@@ -43,12 +42,10 @@ export default function Page() {
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
 
   const [scramblesUsed, setScramblesUsed] = useState(0)
-  const [showVK, setShowVK] = useState(true) // always show for now
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
-  /* ---------- init ---------- */
   useEffect(() => {
     uidRef.current = getUserId()
     const stored = typeof window !== 'undefined' ? localStorage.getItem('stackle_name') : null
@@ -95,13 +92,12 @@ export default function Page() {
       }
       setInput('')
       setScramblesUsed(0)
-      setTimeout(() => inputRef.current?.blur(), 0) // blur to avoid OS keyboard
+      setTimeout(() => inputRef.current?.blur(), 0)
     } finally {
       setLoadingSeed(false)
     }
   }
 
-  /* ---------- validation ---------- */
   function isOneEditAway(a: string, b: string): boolean {
     a = a.toUpperCase()
     b = b.toUpperCase()
@@ -163,7 +159,7 @@ export default function Page() {
     }
   }
 
-  // Physical keyboard support (desktop)
+  // Desktop keyboard support
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') submitWord()
     if (e.key === 'Backspace') setInput((s) => s.slice(0, -1))
@@ -188,7 +184,6 @@ export default function Page() {
     const score = Math.max(stack.length - 1, 0)
     const shareText = `I stacked ${score} words in Stackle Word!`
     gaEvent('share_click', { score, mode })
-
     if (navigator.share) {
       navigator.share({ title: 'My Stackle Word Score', text: shareText, url: window.location.href }).catch(() => {})
     } else {
@@ -212,7 +207,6 @@ export default function Page() {
     }
   }
 
-  /* ---------- scramble ---------- */
   const tokensEarned = MILESTONES.filter((m) => Math.max(stack.length - 1, 0) >= m).length
   const tokensAvailable = tokensEarned - scramblesUsed
 
@@ -227,7 +221,6 @@ export default function Page() {
     burst()
   }
 
-  /* ---------- animations ---------- */
   const popVariants: Variants = {
     hidden: { scale: 0.5, y: -40, opacity: 0 },
     show: {
@@ -238,7 +231,6 @@ export default function Page() {
     },
   }
 
-  /* ---------- virtual keyboard handlers ---------- */
   const vkOnChar = (c: string) => setInput((s) => (s + c).toUpperCase())
   const vkOnDelete = () => setInput((s) => s.slice(0, -1))
   const vkOnEnter = () => submitWord()
@@ -246,7 +238,6 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-black flex flex-col items-center text-gray-900">
       <AnimatePresence mode="wait">
-        {/* HOME */}
         {screen === 'home' && (
           <motion.div
             key="home"
@@ -256,8 +247,8 @@ export default function Page() {
             transition={{ duration: 0.25 }}
             className="w-full max-w-md p-6 pt-16 text-center space-y-6 relative"
           >
-            <h1 className="text-3xl font-bold mb-4 text-[#334155]">Stackle Word</h1>
-            <p className="text-sm text-gray-600 mb-6">Choose a mode to start playing.</p>
+            <h1 className="text-3xl font-bold mb-2 text-[#334155]">Stackle Word</h1>
+            <p className="text-sm italic text-gray-600 mb-6">A little goes a long way</p>
 
             <div className="space-y-3">
               <button
@@ -281,7 +272,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Venmo block */}
+            {/* Venmo block bottom-left */}
             <div className="absolute left-3 bottom-3 text-[#334155] flex flex-col items-start space-y-1">
               <span className="text-sm font-semibold">@Nuiche 🕺</span>
               <a
@@ -291,13 +282,12 @@ export default function Page() {
                 className="flex items-center space-x-1 opacity-80 text-[10px]"
               >
                 <SiVenmo className="w-3.5 h-3.5" />
-                <span>venmo</span>
+                <span>VENMO</span>
               </a>
             </div>
           </motion.div>
         )}
 
-        {/* NICKNAME */}
         {screen === 'nickname' && (
           <motion.div
             key="nickname"
@@ -331,7 +321,6 @@ export default function Page() {
           </motion.div>
         )}
 
-        {/* GAME */}
         {screen === 'game' && (
           <motion.div
             key="game"
@@ -340,8 +329,23 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
-            {/* Top input & seed */}
-            <div className="sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-3">
+            {/* Scramble token button (top-left) */}
+            {tokensAvailable > 0 && (
+              <motion.button
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleScramble}
+                className="fixed top-4 left-4 w-12 h-12 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center z-50"
+                aria-label="Scramble seed"
+              >
+                <Image src="/icons/reset.png" alt="Scramble" width={32} height={32} />
+              </motion.button>
+            )}
+
+            {/* Input area (sticky but pushed down) */}
+            <div className="sticky top-[12vh] z-10 bg-transparent backdrop-blur-sm pb-3">
               <div className="mb-2 flex space-x-2 items-center">
                 <div className="relative flex-1">
                   <input
@@ -352,7 +356,7 @@ export default function Page() {
                     onKeyDown={onKeyDown}
                     className="w-full p-3 pr-14 border-2 border-[#334155] rounded-lg uppercase text-center text-xl tracking-widest focus:outline-none focus:border-[#3BB2F6] bg-[#F1F5F9] select-none"
                     placeholder={loadingSeed ? 'LOADING…' : 'ENTER WORD'}
-                    onFocus={(e) => e.currentTarget.blur()} // keep OS keyboard away
+                    onFocus={(e) => e.currentTarget.blur()}
                   />
                   <span className="absolute inset-y-0 right-3 flex items-center text-[#334155] font-semibold">
                     {Math.max(stack.length - 1, 0)}
@@ -381,7 +385,7 @@ export default function Page() {
             </div>
 
             {/* Past words */}
-            <div className="mt-2 space-y-2 pb-40 overflow-hidden">
+            <div className="mt-2 space-y-2 pb-44 overflow-hidden">
               <AnimatePresence initial={false}>
                 {stack.slice(1).map((word, i) => (
                   <motion.div
@@ -399,30 +403,13 @@ export default function Page() {
               </AnimatePresence>
             </div>
 
-            {/* Scramble button */}
-            {tokensAvailable > 0 && (
-              <motion.button
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handleScramble}
-                className="fixed bottom-40 right-4 w-14 h-14 rounded-full bg-[#3BB2F6] shadow-lg flex items-center justify-center z-50"
-                aria-label="Scramble seed"
-              >
-                <Image src="/icons/reset.png" alt="Scramble" width={36} height={36} />
-              </motion.button>
-            )}
-
-            {/* Custom keyboard */}
-            {showVK && (
-              <VirtualKeyboard
-                onChar={vkOnChar}
-                onDelete={vkOnDelete}
-                onEnter={vkOnEnter}
-                disabled={loadingSeed}
-              />
-            )}
+            {/* Virtual keyboard */}
+            <VirtualKeyboard
+              onChar={vkOnChar}
+              onDelete={vkOnDelete}
+              onEnter={vkOnEnter}
+              disabled={loadingSeed}
+            />
 
             {/* Bottom bar */}
             <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">

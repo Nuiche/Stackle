@@ -19,18 +19,17 @@ const ROWS = [
 export default function VirtualKeyboard({ onChar, onDelete, onEnter, disabled }: Props) {
   return (
     <div
-      className="fixed bottom-24 left-0 right-0 mx-auto max-w-md px-2 pb-2 pointer-events-auto"
-      style={{ zIndex: 60 }}
+      className="fixed bottom-20 left-0 right-0 mx-auto max-w-md px-2 pb-2 pointer-events-auto z-60"
     >
-      <div className="backdrop-blur bg-[#334155]/75 rounded-xl p-2 shadow-lg space-y-2">
+      <div className="backdrop-blur bg-[#334155]/60 rounded-2xl p-3 shadow-xl space-y-3">
         {ROWS.map((row, ri) => (
-          <div key={ri} className="flex justify-center gap-2">
+          <div key={ri} className="flex justify-center gap-3">
             {row.map((k) => (
               <button
                 key={k}
                 disabled={disabled}
                 onClick={() => onChar(k)}
-                className="flex-1 py-2 rounded-md bg-[#F1F5F9]/90 text-[#334155] font-semibold text-base active:scale-95 disabled:opacity-50"
+                className="flex-1 py-3 rounded-lg bg-[#F1F5F9]/90 text-[#334155] font-semibold text-lg active:scale-95 disabled:opacity-50"
               >
                 {k}
               </button>
@@ -39,7 +38,8 @@ export default function VirtualKeyboard({ onChar, onDelete, onEnter, disabled }:
               <button
                 disabled={disabled}
                 onClick={onDelete}
-                className="px-3 py-2 rounded-md bg-[#F1F5F9]/90 text-[#334155] font-semibold text-base active:scale-95 disabled:opacity-50"
+                className="px-4 py-3 rounded-lg bg-[#F1F5F9]/90 text-[#334155] font-semibold text-2xl leading-none active:scale-95 disabled:opacity-50"
+                aria-label="Delete"
               >
                 ⌫
               </button>
@@ -48,7 +48,8 @@ export default function VirtualKeyboard({ onChar, onDelete, onEnter, disabled }:
               <button
                 disabled={disabled}
                 onClick={onEnter}
-                className="px-3 py-2 rounded-md bg-[#3BB2F6] text-white font-semibold text-base active:scale-95 disabled:opacity-50"
+                className="px-4 py-3 rounded-lg bg-[#3BB2F6] text-white font-semibold text-lg active:scale-95 disabled:opacity-50"
+                aria-label="Enter"
               >
                 ↵
               </button>
