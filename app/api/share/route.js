@@ -1,8 +1,6 @@
 import { ImageResponse } from 'next/og'
 
-export const runtime = 'edge'
-export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
+export const runtime = 'edge' // ok to keep
 
 function q(searchParams, key, fallback = '') {
   const v = searchParams.get(key)
@@ -66,6 +64,6 @@ export function GET(req) {
         </div>
       </div>
     ),
-    size
+    { width: 1200, height: 630 }
   )
 }
