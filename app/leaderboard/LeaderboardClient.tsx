@@ -45,9 +45,9 @@ export default function LeaderboardClient() {
 
   const podiumBg = (i: number) =>
     i === 0 ? 'bg-[#FFD70033]'
-    : i === 1 ? 'bg-[#C0C0C033]'
-    : i === 2 ? 'bg-[#CD7F3233]'
-    : ''
+      : i === 1 ? 'bg-[#C0C0C033]'
+      : i === 2 ? 'bg-[#CD7F3233]'
+      : ''
 
   const renderRow = (r: Row, i: number) => (
     <div
@@ -56,11 +56,10 @@ export default function LeaderboardClient() {
     >
       <span className="text-[#334155] font-medium">#{i + 1}</span>
       <span className="truncate px-2 text-[#334155]">
-        {r.seed ? `${r.seed} – ` : ''}
         {(r.name && r.name.trim()) || 'Anon'}
       </span>
       <span className="text-right font-semibold text-[#334155]">
-        {r.score}
+        {(r.seed ? `${r.seed} – ` : '')}{r.score}
       </span>
     </div>
   )

@@ -6,13 +6,14 @@ import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
 import VirtualKeyboard from '@/components/VirtualKeyboard'
 import HowToModal from '@/components/HowToModal'
-import ShareModal from '@/components/ShareModal'
+import ShareModal from '../components/ShareModal'
 import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
 import { getUserId } from '@/lib/user'
 import { getDailyLeaderboard } from '@/lib/getLeaderboard'
 import { getESTDayKey } from '@/lib/dayKey'
 import { titleFont } from '@/lib/fonts'
+
 
 type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
@@ -21,6 +22,8 @@ const MILESTONES = [5, 12, 21, 32, 45]
 const FALLBACK_SEEDS = ['STONE', 'ALONE', 'CRANE', 'LIGHT', 'WATER', 'CROWN']
 const HELP_KEY = 'lexit_help_seen_v1'
 const MAX_LEN = 8
+
+
 
 export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
@@ -192,8 +195,10 @@ export default function Page() {
         mode
       })
       if (dayKey) params.set('date', dayKey)
-      setShareUrl(`/api/share?${params.toString()}`)
-      setShowShare(true)
+      // 👇 Add/replace this block
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    setShareUrl(`${origin}/api/share?${params.toString()}`)
+    setShowShare(true)
 
       alert('Score submitted!')
     } catch (e) {

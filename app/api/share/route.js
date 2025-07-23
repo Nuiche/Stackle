@@ -1,19 +1,20 @@
 import { ImageResponse } from 'next/og'
 
-export const runtime = 'edge' // ok to keep
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic' // avoid static caching
 
-function q(searchParams, key, fallback = '') {
-  const v = searchParams.get(key)
-  return v ? decodeURIComponent(v) : fallback
+function qp(sp, k, d = '') {
+  const v = sp.get(k)
+  return v ? decodeURIComponent(v) : d
 }
 
 export function GET(req) {
   const { searchParams } = new URL(req.url)
 
-  const name  = q(searchParams, 'name', 'Anon')
-  const score = q(searchParams, 'score', '0')
-  const mode  = q(searchParams, 'mode', 'endless')
-  const date  = q(searchParams, 'date', '')
+  const name  = qp(searchParams, 'name', 'Anon')
+  const score = qp(searchParams, 'score', '0')
+  const mode  = qp(searchParams, 'mode', 'endless')
+  const date  = qp(searchParams, 'date', '')
 
   const title = mode === 'daily' ? 'Daily Challenge' : 'Endless Mode'
   const bgTop = '#3BB2F6'
@@ -25,8 +26,8 @@ export function GET(req) {
     (
       <div
         style={{
-          width: '1200px',
-          height: '630px',
+          width: 1200,
+          height: 630,
           display: 'flex',
           flexDirection: 'column',
           background: `linear-gradient(180deg, ${bgTop}, ${bgBot})`,
