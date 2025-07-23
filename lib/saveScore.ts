@@ -1,4 +1,7 @@
 // lib/saveScore.ts
+import { db } from './firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
 export type SaveScorePayload = {
   name: string;
   mode: 'daily' | 'endless';
@@ -14,21 +17,15 @@ export type SaveScoreResult =
 export async function saveScore(
   payload: SaveScorePayload
 ): Promise<SaveScoreResult> {
-  const res = await fetch('/api/submit-score', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  let json: any = {};
   try {
-    json = await res.json();
-  } catch {
-    // ignore
+    const ref = await addDoc(collection(db, 'scores'), {
+      ...payload,
+      createdAt: serverTimestamp(),
+      _name_: payload.name.toLowerCase(),
+    });
+    return { ok: true, id: ref.id };
+  } catch (e: any) {
+    console.error('saveScore error:', e);
+    return { ok: false, error: e?.message || 'unknown' };
   }
-
-  if (!res.ok) {
-    return { ok: false, error: json?.error || res.statusText };
-  }
-  return { ok: true, id: json?.id || '' };
 }

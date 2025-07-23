@@ -14,6 +14,7 @@ import { event as gaEvent } from '@/lib/gtag';
 import { burst } from '@/lib/confetti';
 import { saveScore, SaveScoreResult } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
+import { titleFont } from '@/lib/fonts';
 
 import HowToModal from '@/components/HowToModal';
 import ShareModal from '@/components/ShareModal';
@@ -37,6 +38,15 @@ const popVariants: Variants = {
     transition: { type: 'spring', stiffness: 260, damping: 20 },
   },
   exit: { opacity: 0, scale: 0.8, y: 10, transition: { duration: 0.15 } },
+};
+
+const childFall: Variants = {
+  hidden: { opacity: 0, y: -40 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 200, damping: 18 },
+  },
 };
 
 const isOneLetterDifferent = (a: string, b: string) => {
@@ -70,13 +80,11 @@ async function fetchDictionary(): Promise<Set<string>> {
 }
 
 export default function Page() {
-  // UI
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
 
-  // Game
   const [nickname, setNickname] = useState('');
   const [gameMode, setGameMode] = useState<GameMode>('endless');
   const [seedWord, setSeedWord] = useState('TREAT');
@@ -87,7 +95,6 @@ export default function Page() {
   const [submitState, setSubmitState] =
     useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // Refs
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -246,7 +253,7 @@ export default function Page() {
           ← Back
         </button>
 
-        {/* Input + score + send */}
+        {/* Input + seed */}
         <div className="w-full max-w-md px-4 mt-20 z-40">
           <div className="flex gap-2 items-center mb-2">
             <input
@@ -299,7 +306,7 @@ export default function Page() {
           </AnimatePresence>
         </div>
 
-        {/* VK */}
+        {/* Keyboard */}
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-4 pointer-events-none">
           <div className="backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-3 space-y-2 pointer-events-auto">
             {KB_ROWS.map((row, i) => (
@@ -378,7 +385,6 @@ export default function Page() {
   );
 }
 
-// Home screen
 function HomeScreen({
   nickname,
   onNicknameChange,
@@ -393,15 +399,12 @@ function HomeScreen({
       <motion.div
         initial="hidden"
         animate="show"
-        variants={{
-          hidden: {},
-          show: { transition: { staggerChildren: 0.35 } },
-        }}
+        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }}
         className="w-full max-w-md px-6 space-y-6"
       >
         <motion.h1
           variants={childFall}
-          className="text-5xl font-extrabold text-[#334155]"
+          className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}
         >
           Lexit
         </motion.h1>
@@ -437,12 +440,3 @@ function HomeScreen({
     </main>
   );
 }
-
-const childFall: Variants = {
-  hidden: { opacity: 0, y: -40 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring', stiffness: 200, damping: 18 },
-  },
-};
