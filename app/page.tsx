@@ -11,7 +11,9 @@ import { burst } from '@/lib/confetti'
 import { getUserId } from '@/lib/user'
 import { getDailyLeaderboard } from '@/lib/getLeaderboard'
 import { getESTDayKey } from '@/lib/dayKey'
-import { titleFont } from '../layout'
+import { Cinzel } from 'next/font/google'
+const titleFont = Cinzel({ subsets: ['latin'], weight: ['700'] })
+
 
 type GameMode = 'endless' | 'daily'
 type Screen = 'home' | 'nickname' | 'game'
