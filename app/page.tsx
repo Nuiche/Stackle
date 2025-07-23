@@ -14,18 +14,16 @@ import { burst } from '@/lib/confetti';
 import { event as gaEvent } from '@/lib/gtag';
 import { saveScore, SaveScoreResult, GameMode } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
-
 import HowToModal from '@/components/HowToModal';
 
-// ---------------- Constants ----------------
+// ------------- constants -------------
 const MAX_LEN = 8;
 const POP_INTERVALS = [5, 12, 21, 32, 45];
 
 const KB_ROWS = [
-  // ENTER on left, DEL on right
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'],
+  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'], // ENTER left, DEL right
 ];
 
 const popVariants: Variants = {
@@ -48,7 +46,7 @@ const childFall: Variants = {
   },
 };
 
-// ---------------- Helpers ----------------
+// ------------- helpers -------------
 const isOneLetterDifferent = (a: string, b: string) => {
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0,
@@ -79,17 +77,17 @@ async function fetchDictionary(): Promise<Set<string>> {
   return new Set(data);
 }
 
-// ---------------- Page ----------------
+// ------------- component -------------
 export default function Page() {
-  // Home / modals
+  // UI
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
 
-  // Game state
+  // game
   const [nickname, setNickname] = useState('');
   const [gameMode, setGameMode] = useState<GameMode>('endless');
   const [seedWord, setSeedWord] = useState('TREAT');
-  const [stack, setStack] = useState<string[]>([]);
+  const [stack, setStack] = useState<string[]>([]); // accepted words
   const [score, setScore] = useState(0);
   const [input, setInput] = useState('');
   const [dict, setDict] = useState<Set<string>>(new Set());
@@ -100,19 +98,17 @@ export default function Page() {
   // refs
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load dictionary & nickname
+  // load dictionary + nick
   useEffect(() => {
     fetchDictionary().then(setDict);
     const saved = localStorage.getItem('lexit_nick');
     if (saved) setNickname(saved);
   }, []);
 
-  // focus input when game screen shows (desktop)
   useEffect(() => {
     if (!showHome) inputRef.current?.focus();
   }, [showHome]);
 
-  // Start game
   const startGame = async (mode: GameMode) => {
     setGameMode(mode);
     if (mode === 'daily') {
@@ -132,7 +128,6 @@ export default function Page() {
     setShowHelp(true);
   };
 
-  // Submit new word
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
@@ -165,10 +160,10 @@ export default function Page() {
 
     if (POP_INTERVALS.includes(score + 1)) burst();
 
-    inputRef.current?.blur(); // keep native kb away
+    // prevent native KB
+    inputRef.current?.blur();
   }, [input, seedWord, stack, score, dict]);
 
-  // Physical keyboard (desktop)
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -176,7 +171,6 @@ export default function Page() {
     }
   };
 
-  // Virtual keyboard
   const onVKPress = (key: string) => {
     if (key === 'ENTER') {
       submitWord();
@@ -190,7 +184,6 @@ export default function Page() {
     setInput((v) => (v + key).toUpperCase());
   };
 
-  // Save score
   const handleSaveScore = async () => {
     if (submitState !== 'idle') return;
     setSubmitState('saving');
@@ -215,7 +208,6 @@ export default function Page() {
     }
   };
 
-  // Share plain link
   const handleShare = () => {
     const text = `I scored ${score} in ${
       gameMode === 'daily' ? 'the Daily Challenge' : 'Endless Mode'
@@ -231,7 +223,6 @@ export default function Page() {
     }
   };
 
-  // change nickname
   const changeNick = () => {
     const n = prompt('Enter a new nickname (max 20 chars):', nickname) || '';
     const clean = n.trim().slice(0, 20);
@@ -239,7 +230,6 @@ export default function Page() {
     localStorage.setItem('lexit_nick', clean);
   };
 
-  // Back to home
   const backHome = () => {
     setShowHome(true);
     setStack([]);
@@ -258,7 +248,13 @@ export default function Page() {
     );
   }
 
+  // current seed is last accepted or initial seed
   const latestSeed = stack.length ? stack[stack.length - 1] : seedWord;
+
+  // past words = all previous accepted words + the original seedWord (if at least 1 play)
+  const pastWords: string[] =
+    stack.length === 0 ? [] : [seedWord, ...stack.slice(0, -1)];
+
   const canSubmitScore = score > 0 && submitState !== 'saved';
 
   return (
@@ -274,9 +270,13 @@ export default function Page() {
           ← Back
         </button>
 
-        {/* Input + button + score in box */}
-        <div className="w-full max-w-md px-4 mt-20">
-          <div className="flex gap-2 items-center mb-2">
+        {/* Input area */}
+        <div className="w-full max-w-md px-4 mt-20 relative">
+          <div className="flex gap-2 items-center mb-2 relative">
+            {/* score in box right side */}
+            <span className="absolute right-20 top-1/2 -translate-y-1/2 text-[#334155]">
+              {score}
+            </span>
             <input
               ref={inputRef}
               value={input}
@@ -312,11 +312,11 @@ export default function Page() {
           </motion.div>
         </div>
 
-        {/* Past stack */}
+        {/* Past stack under seed */}
         <div className="w-full max-w-md px-4 flex-1 overflow-hidden">
           <AnimatePresence initial={false}>
-            {stack
-              .slice(0, -1) // all but current
+            {pastWords
+              .slice() // copy
               .reverse()
               .map((w) => (
                 <motion.div
@@ -334,12 +334,12 @@ export default function Page() {
         </div>
 
         {/* Virtual keyboard */}
-        <div className="fixed bottom-24 left-0 right-0 flex flex-col items-center pointer-events-none">
-          <div className="backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto">
+        <div className="fixed bottom-24 left-0 right-0 flex justify-center pointer-events-none">
+          <div className="max-w-md w-full backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto mx-auto">
             {KB_ROWS.map((row, idx) => (
               <div
                 key={idx}
-                className="flex justify-center gap-2 mb-2 last:mb-0"
+                className="flex justify-center gap-2 mb-2 last:mb-0 flex-nowrap"
               >
                 {row.map((k) => {
                   const isEnter = k === 'ENTER';
@@ -397,7 +397,7 @@ export default function Page() {
   );
 }
 
-// -------------- Home screen --------------
+// ------------- home screen -------------
 function HomeScreen({
   nickname,
   onNicknameChange,
@@ -417,7 +417,7 @@ function HomeScreen({
       >
         <motion.h1
           variants={childFall}
-          className="text-5xl font-extrabold text-[#334155]"
+          className="text-5xl font-extrabold text-[#334155] font-[var(--font-title)]"
         >
           Lexit
         </motion.h1>

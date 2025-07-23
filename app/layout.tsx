@@ -1,14 +1,12 @@
 // app/layout.tsx
 import './globals.css';
-import type { Metadata, Viewport } from 'next';
-import { baseFont } from '@/lib/fonts';
+import type { Metadata } from 'next';
+import { titleFont } from '@/lib/fonts';
 
 export const metadata: Metadata = {
   title: 'Lexit',
-  description: 'A little goes a long way.',
+  description: 'Change one letter. Climb the stack.',
 };
-
-export const viewport: Viewport = { themeColor: '#3BB2F6' };
 
 export default function RootLayout({
   children,
@@ -16,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={baseFont.className}>
-      <body className="bg-[#F1F5F9] text-[#334155] min-h-screen">
+    <html lang="en" className={titleFont.variable}>
+      <body className="min-h-screen bg-gradient-to-b from-white to-slate-200 text-[#334155]">
         {children}
       </body>
     </html>
