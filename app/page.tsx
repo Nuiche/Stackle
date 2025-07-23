@@ -15,7 +15,7 @@ import { event as gaEvent } from '@/lib/gtag';
 import { saveScore, SaveScoreResult, GameMode } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
 import HowToModal from '@/components/HowToModal';
-import { titleFont } from '@/lib/fonts'; // <-- added
+import { titleFont } from '@/lib/fonts';
 
 // ---------- constants ----------
 const MAX_LEN = 8;
@@ -24,7 +24,7 @@ const POP_INTERVALS = [5, 12, 21, 32, 45];
 const KB_ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'],
+  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'], // ENTER left, DEL right
 ];
 
 const popVariants: Variants = {
@@ -329,15 +329,37 @@ export default function Page() {
               {row.map((k) => {
                 const isEnter = k === 'ENTER';
                 const isDel = k === 'DEL';
+                const base =
+                  'h-12 rounded-xl text-lg font-semibold flex items-center justify-center';
+                if (isEnter) {
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => onVKPress(k)}
+                      className={`${base} w-16 bg-[#3BB2F6] text-white`}
+                    >
+                      ↵
+                    </button>
+                  );
+                }
+                if (isDel) {
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => onVKPress(k)}
+                      className={`${base} w-16 bg-[#F1F5F9] text-[#334155]`}
+                    >
+                      ⌫
+                    </button>
+                  );
+                }
                 return (
                   <button
                     key={k}
                     onClick={() => onVKPress(k)}
-                    className={`h-12 ${
-                      isEnter || isDel ? 'w-16' : 'w-10'
-                    } rounded-xl bg-[#F1F5F9] text-[#334155] text-lg font-semibold flex items-center justify-center`}
+                    className={`${base} w-10 bg-[#F1F5F9] text-[#334155]`}
                   >
-                    {isEnter ? '↵' : isDel ? '⌫' : k}
+                    {k}
                   </button>
                 );
               })}
@@ -434,6 +456,11 @@ function HomeScreen({
           Change nickname {nickname ? `(@${nickname})` : ''}
         </motion.div>
       </motion.div>
+
+      {/* Creator credit near bottom */}
+      <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60">
+        Created By: Nuiche
+      </div>
     </div>
   );
 }
