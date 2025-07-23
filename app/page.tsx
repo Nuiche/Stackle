@@ -6,7 +6,6 @@ import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { FaShareAlt, FaTrophy, FaPaperPlane } from 'react-icons/fa'
 import VirtualKeyboard from '@/components/VirtualKeyboard'
 import HowToModal from '@/components/HowToModal'
-import { event as gaEvent } from '@/lib/gtag'
 import { saveScore } from '@/lib/saveScore'
 import { burst } from '@/lib/confetti'
 import { getUserId } from '@/lib/user'
@@ -33,19 +32,23 @@ export default function Page() {
   const [topDaily, setTopDaily] = useState<{ name?: string; score: number } | null>(null)
   const [scramblesUsed, setScramblesUsed] = useState(0)
   const [showHelp, setShowHelp] = useState(false)
+  const [submittedScore, setSubmittedScore] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const uidRef = useRef<string>('')
 
+  // Restore stored name if present (handle old key too)
   useEffect(() => {
     uidRef.current = getUserId()
     const stored =
       typeof window !== 'undefined'
-        ? localStorage.getItem('stackle_name') || localStorage.getItem('lexit_name')
+        ? localStorage.getItem('lexit_name') ||
+          localStorage.getItem('stackle_name')
         : null
     if (stored) setName(stored)
   }, [])
 
+  // Load dictionary
   useEffect(() => {
     fetch('/api/dictionary')
       .then(r => r.json())
@@ -58,6 +61,7 @@ export default function Page() {
       })
   }, [])
 
+  // Get top daily (for home screen display)
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
     getDailyLeaderboard(today, 1)
@@ -65,6 +69,7 @@ export default function Page() {
       .catch(() => {})
   }, [])
 
+  // Start game whenever we enter game screen or dictionary ready
   useEffect(() => {
     if (screen !== 'game') return
     startGame()
@@ -83,6 +88,7 @@ export default function Page() {
       }
       setInput('')
       setScramblesUsed(0)
+      setSubmittedScore(false)
 
       if (!localStorage.getItem(HELP_KEY)) {
         setShowHelp(true)
@@ -94,6 +100,7 @@ export default function Page() {
     }
   }
 
+  // Edit distance 1 check
   function isOneEditAway(a: string, b: string) {
     a = a.toUpperCase(); b = b.toUpperCase()
     if (a === b) return false
@@ -114,6 +121,7 @@ export default function Page() {
 
   const score = Math.max(stack.length - 1, 0)
 
+  // Submit typed word
   const submitWord = () => {
     const w = input.trim().toUpperCase()
     if (!w) return
@@ -125,8 +133,10 @@ export default function Page() {
     setStack(newStack)
     setInput('')
     const newScore = Math.max(newStack.length - 1, 0)
-    localStorage.setItem('lexit_last_score', String(newScore))
+
+    // Only persist name; delay score persistence until submit
     localStorage.setItem('lexit_name', name)
+
     if (navigator.vibrate) navigator.vibrate(15)
     if (newScore > 0 && newScore % 5 === 0) burst()
     setSendSpin(true); setTimeout(() => setSendSpin(false), 350)
@@ -165,6 +175,7 @@ export default function Page() {
     setIsSaving(true)
     try {
       await saveScore({ mode, score, name })
+      setSubmittedScore(true)
       alert('Score submitted!')
     } catch (e) {
       console.error(e)
@@ -172,6 +183,19 @@ export default function Page() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  // Back button logic: if not submitted, optionally discard
+  const handleBackToHome = () => {
+    if (!submittedScore && score > 0) {
+      const ok = confirm('Leave game? Progress will be lost and not submitted.')
+      if (!ok) return
+    }
+    // Cleanup any temp score persistence if you added it
+    // localStorage.removeItem('lexit_last_score') // only if you were storing it
+    setStack([])
+    setInput('')
+    setScreen('home')
   }
 
   const tokensEarned = MILESTONES.filter(m => score >= m).length
@@ -187,7 +211,7 @@ export default function Page() {
     burst()
   }
 
-  // intro pacing slower
+  // Animations
   const homeParent: Variants = {
     hidden: { opacity: 0, y: -60 },
     show: {
@@ -216,6 +240,7 @@ export default function Page() {
     }
   }
 
+  // VK handlers
   const vkOnChar  = (c: string) => setInput(s => (s + c).toUpperCase())
   const vkOnDelete= () => setInput(s => s.slice(0, -1))
   const vkOnEnter = () => submitWord()
@@ -263,6 +288,14 @@ export default function Page() {
               </div>
             </motion.div>
 
+            {/* Subtle change nickname link */}
+            <motion.button
+              variants={homeChild}
+              onClick={() => setScreen('nickname')}
+              className="absolute bottom-3 right-3 text-[11px] text-gray-400 underline"
+            >
+              Change nickname
+            </motion.button>
           </motion.div>
         )}
 
@@ -306,6 +339,15 @@ export default function Page() {
             exit={{ opacity: 0 }}
             className="w-full max-w-md mx-auto flex-1 flex flex-col p-4"
           >
+            {/* Back button */}
+            <button
+              onClick={handleBackToHome}
+              className="fixed top-4 right-4 z-50 text-sm underline text-gray-500"
+            >
+              Back
+            </button>
+
+            {/* Scramble token button (if any) */}
             {tokensAvailable > 0 && (
               <motion.button
                 initial={{ scale: 0, opacity: 0 }}
@@ -378,6 +420,7 @@ export default function Page() {
               </AnimatePresence>
             </div>
 
+            {/* Virtual keyboard */}
             <VirtualKeyboard
               onChar={vkOnChar}
               onDelete={vkOnDelete}
@@ -386,6 +429,7 @@ export default function Page() {
               activeChars={activeChars}
             />
 
+            {/* Bottom action bar */}
             <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-4 px-3 z-50">
               <div className="w-full max-w-md bg-black/60 rounded-2xl shadow-lg backdrop-blur flex gap-2 p-2">
                 <button
@@ -396,10 +440,10 @@ export default function Page() {
                 </button>
                 <button
                   onClick={handleSubmitScore}
-                  disabled={isSaving}
+                  disabled={isSaving || submittedScore}
                   className="flex-1 py-2 bg-[#10B981] text-white rounded-lg flex items-center justify-center space-x-1 text-sm disabled:opacity-60"
                 >
-                  <FaTrophy /> <span>{isSaving ? 'Saving…' : 'Submit'}</span>
+                  <FaTrophy /> <span>{isSaving ? 'Saving…' : submittedScore ? 'Saved' : 'Submit'}</span>
                 </button>
                 <Link
                   href="/leaderboard"
