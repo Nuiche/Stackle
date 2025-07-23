@@ -1,34 +1,64 @@
 // components/ShareModal.tsx
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  imageSrc: string; // object URL from canvas
+  imageUrl: string; // <-- matches usage in app/page.tsx
 };
 
-export default function ShareModal({ open, onClose, imageSrc }: Props) {
+export default function ShareModal({ open, onClose, imageUrl }: Props) {
+  const [src, setSrc] = useState('');
+  const [err, setErr] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch & blobify the image when opened or URL changes
+  useEffect(() => {
+    if (!open || !imageUrl) return;
+    let revoked = false;
+    (async () => {
+      setLoading(true);
+      setErr(false);
+      try {
+        const res = await fetch(imageUrl, { cache: 'no-store' });
+        if (!res.ok) throw new Error('bad status');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        if (!revoked) setSrc(url);
+      } catch {
+        if (!revoked) setErr(true);
+      } finally {
+        if (!revoked) setLoading(false);
+      }
+    })();
+    return () => {
+      revoked = true;
+      if (src) URL.revokeObjectURL(src);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, imageUrl]);
+
   if (!open) return null;
 
-  const copy = async () => {
+  async function handleCopy() {
     try {
-      const blob = await fetch(imageSrc).then(r => r.blob());
+      const blob = await fetch(src).then(r => r.blob());
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type]: blob }),
       ]);
       alert('Copied!');
     } catch {
-      alert('Copy failed, use Download.');
+      alert('Copy failed, try Download.');
     }
-  };
+  }
 
-  const download = () => {
+  function handleDownload() {
     const a = document.createElement('a');
-    a.href = imageSrc;
+    a.href = src;
     a.download = 'lexit-score.png';
     a.click();
-  };
+  }
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
@@ -43,29 +73,42 @@ export default function ShareModal({ open, onClose, imageSrc }: Props) {
         <h2 className="text-2xl font-semibold text-[#334155] mb-4">Share Card</h2>
 
         <div className="border rounded-lg overflow-hidden mb-4 flex items-center justify-center h-48 bg-gray-100">
-          {imageSrc ? (
+          {loading && <div className="text-gray-500 text-sm">Generating…</div>}
+          {!loading && !err && src && (
             <img
-              src={imageSrc}
+              src={src}
               alt="share"
               className="max-h-full max-w-full object-contain"
             />
-          ) : (
-            <div className="text-gray-500 text-sm">Generating…</div>
+          )}
+          {!loading && err && (
+            <div className="text-red-500 text-sm">
+              Failed to load image.
+              <br />
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline text-blue-600"
+              >
+                Open in new tab
+              </a>
+            </div>
           )}
         </div>
 
         <div className="flex gap-3 justify-center">
           <button
-            onClick={copy}
+            onClick={handleCopy}
             className="px-5 py-3 rounded-lg bg-[#3BB2F6] text-white font-medium"
-            disabled={!imageSrc}
+            disabled={err || loading || !src}
           >
             Copy
           </button>
           <button
-            onClick={download}
+            onClick={handleDownload}
             className="px-5 py-3 rounded-lg bg-[#10B981] text-white font-medium"
-            disabled={!imageSrc}
+            disabled={err || loading || !src}
           >
             Download
           </button>
