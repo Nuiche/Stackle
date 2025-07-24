@@ -155,7 +155,7 @@ export default function Page() {
     }
 
     setStack((p) => [...p, newWord]);
-    setScore((s) => s + 1);
+    setScore((s) => s + newWord.length);
     setInput('');
     if (POP_INTERVALS.includes(score + 1)) burst();
     inputRef.current?.blur();
