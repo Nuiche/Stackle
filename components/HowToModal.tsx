@@ -26,12 +26,11 @@ export default function HowToModal({ open, onClose }: { open: boolean; onClose: 
         >
           <h2 className="text-2xl font-bold mb-3">How to Play Lexit</h2>
           <ol className="list-decimal list-inside space-y-2 text-sm">
-            <li>Start from the seed word shown in gray.</li>
-            <li>Change exactly one letter (or add/remove exactly one) to make a real English word.</li>
-            <li>Your new word becomes the seed. Repeat and build your stack.</li>
-            <li>No repeats within the same game.</li>
-            <li>Hit milestones to earn a scramble token.</li>
-            <li>Daily Challenge: same seed for everyone, resets every 24h.</li>
+            <li>⦁ Start with the daily or endless seed word.</li>
+            <li>⦁ Change exactly one letter (insert, delete or replace) per turn.</li>
+            <li>⦁ Words must be at least 4 letters and at most 8 letters long.</li>
+            <li>⦁ Earn points equal to each word’s length.</li>
+            <li>⦁ You have 1 minute, 30 seconds to chain as many words as possible!</li>
           </ol>
           <button
             onClick={onClose}
