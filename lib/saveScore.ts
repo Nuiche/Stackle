@@ -1,6 +1,4 @@
 // lib/saveScore.ts
-import { db } from './firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 export type GameMode = 'daily' | 'endless';
 
@@ -18,20 +16,25 @@ export interface SaveScoreResult {
   error?: string;
 }
 
-export async function saveScore(payload: SaveScorePayload): Promise<SaveScoreResult> {
+export async function saveScore(
+  payload: SaveScorePayload
+): Promise<SaveScoreResult> {
   try {
-    await addDoc(collection(db, 'scores'), {
-      name: payload.name,
-      mode: payload.mode,
-      score: payload.score,
-      startSeed: payload.startSeed,
-      endSeed: payload.endSeed,
-      dayKey: payload.dayKey ?? null,
-      createdAt: serverTimestamp(),
+    const res = await fetch('/api/submit-score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
-    return { ok: true };
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      return { ok: false, error: errorText };
+    }
+
+    const data: SaveScoreResult = await res.json();
+    return data;
   } catch (e: any) {
     console.error('saveScore error', e);
-    return { ok: false, error: e?.message || 'unknown' };
+    return { ok: false, error: e.message || 'unknown' };
   }
 }
