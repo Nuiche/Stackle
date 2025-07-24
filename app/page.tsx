@@ -137,12 +137,16 @@ useEffect(() => {
     // When timer hits zero, auto‐submit and navigate
     useEffect(() => {
     if (timeLeft === 0) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      handleSaveScore().then(() => {
-        router.push('/leaderboard');
-      });
+      if (score > 0) {
+        handleSaveScore()
+          .then(() => router.push('/leaderboard'))
+          .catch(() => router.push('/leaderboard'))
+      } else {
+        router.push('/leaderboard')
+      }
     }
-  }, [timeLeft, router]);
+  }, [timeLeft, score, router])
+
 
 
 
@@ -303,7 +307,7 @@ useEffect(() => {
       </button>
 
       {/* Timer display, above the submission box */}
-      <div className="w-1/4 mx-auto rounded-xl bg-[#D1D5DB] text-white text-2xl font-bold text-center py-2 mb-4">
+      <div className="w-1/4 mx-auto rounded-xl bg-[#CBD5E1] text-white text-2xl font-bold text-center py-2 mb-4">
         {timeLeft > 59
           ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
           : timeLeft
@@ -432,19 +436,7 @@ useEffect(() => {
           >
             <FaShareAlt /> Share
           </button>
-
-          <button
-            disabled={!canSubmitScore}
-            onClick={handleSaveScore}
-            className={`h-10 px-4 rounded-xl flex items-center gap-2 ${
-              canSubmitScore
-                ? 'bg-[#10B981] text-white'
-                : 'bg-gray-400 text-white/60'
-            }`}
-          >
-            <FaTrophy />
-            {submitState === 'saved' ? 'Saved' : 'Submit'}
-          </button>
+          
 
           <a
             href="/leaderboard"
