@@ -152,6 +152,19 @@ useEffect(() => {
 
   const startGame = async (mode: GameMode) => {
     setGameMode(mode);
+    if (mode === 'daily' && !nickname) {
+      let n = '';
+      // keep prompting until non‑empty or user cancels
+      while (!n) {
+        n = prompt('Please enter a nickname (max 20 chars):', '')?.trim() || '';
+        if (!n) {
+          alert('A nickname is required for the Daily Challenge.');
+        }
+      }
+      const clean = n.slice(0, 20);
+      setNickname(clean);
+      localStorage.setItem('lexit_nick', clean);
+    }
     if (mode === 'daily') {
       const r = await fetch('/api/seed');
       const s = await r.json();
