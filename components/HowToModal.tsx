@@ -26,7 +26,7 @@ export default function HowToModal({ open, onClose }: { open: boolean; onClose: 
         >
           <h2 className="text-2xl font-bold mb-3">How to Play Lexit</h2>
           <ol className="list-decimal list-inside space-y-2 text-sm">
-            <li>Start with the daily or endless seed word.</li>
+            <li>Start with the daily seed word.</li>
             <li>Change exactly one letter (insert, delete or replace) per turn.</li>
             <li>Words must be at least 4 letters and at most 8 letters long.</li>
             <li>Earn points equal to each word’s length.</li>

@@ -1,3 +1,4 @@
+// app/page.tsx
 'use client';
 
 import React, {
@@ -9,10 +10,10 @@ import React, {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { FaShareAlt, FaTrophy, FaListUl, FaPaperPlane, FaList } from 'react-icons/fa';
+import { FaShareAlt, FaList } from 'react-icons/fa';
 
 import { burst } from '@/lib/confetti';
-import { gaEvent } from '@/lib/gtag'
+import { gaEvent } from '@/lib/gtag';
 import { saveScore, SaveScoreResult, GameMode } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
 import HowToModal from '@/components/HowToModal';
@@ -20,13 +21,13 @@ import { titleFont } from '@/lib/fonts';
 
 // ---------- constants ----------
 const MAX_LEN = 8;
-const MIN_LEN = 4;    // ← enforce at least 4 letters
+const MIN_LEN = 4;    // enforce at least 4 letters
 const POP_INTERVALS = [5, 12, 21, 32, 45];
 
 const KB_ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'], // ENTER left, DEL right
+  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'],
 ];
 
 const popVariants: Variants = {
@@ -52,22 +53,16 @@ const childFall: Variants = {
 // ---------- helpers ----------
 const isOneLetterDifferent = (a: string, b: string) => {
   if (Math.abs(a.length - b.length) > 1) return false;
-  let i = 0,
-    j = 0,
-    edits = 0;
+  let i = 0, j = 0, edits = 0;
   while (i < a.length && j < b.length) {
     if (a[i] === b[j]) {
-      i++;
-      j++;
+      i++; j++;
     } else {
       edits++;
       if (edits > 1) return false;
       if (a.length > b.length) i++;
       else if (b.length > a.length) j++;
-      else {
-        i++;
-        j++;
-      }
+      else { i++; j++; }
     }
   }
   edits += a.length - i + (b.length - j);
@@ -82,30 +77,24 @@ async function fetchDictionary(): Promise<Set<string>> {
 
 // ---------- component ----------
 export default function Page() {
-  // UI
+  // UI state
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const router = useRouter();
 
-  // Add this right after your existing UI & game‐mode state:
-   const TIME_LIMIT = 90;          // 1.5 minutes in seconds
-   const [timeLeft, setTimeLeft] = useState<number>(TIME_LIMIT);
-   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Timer
+  const TIME_LIMIT = 90;
+  const [timeLeft, setTimeLeft] = useState<number>(TIME_LIMIT);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // game
+  // Game state (daily only)
   const [nickname, setNickname] = useState('');
-  const [gameMode, setGameMode] = useState<GameMode>('endless');
   const [seedWord, setSeedWord] = useState('TREAT');
   const [stack, setStack] = useState<string[]>([]);
   const [score, setScore] = useState(0);
   const [input, setInput] = useState('');
   const [dict, setDict] = useState<Set<string>>(new Set());
-  const [submitState, setSubmitState] = useState<'idle' | 'saving' | 'saved'>(
-    'idle'
-  );
-
-   
-
+  const [submitState, setSubmitState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -115,65 +104,44 @@ export default function Page() {
     if (saved) setNickname(saved);
   }, []);
 
-  // Focus input when we leave the home screen
-useEffect(() => {
-  if (!showHome) inputRef.current?.focus();
-}, [showHome]);
+  useEffect(() => {
+    if (!showHome) inputRef.current?.focus();
+  }, [showHome]);
 
-    // Start countdown once the help modal closes
-    useEffect(() => {
-      if (!showHome && !showHelp) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        setTimeLeft(TIME_LIMIT);
-        timerRef.current = setInterval(() => {
-          setTimeLeft(t => t - 1);
-        }, 1000);
-      }
-      return () => {
-        if (timerRef.current) clearInterval(timerRef.current);
-      };
-    }, [showHome, showHelp]);
-
-    // When timer hits zero, auto‐submit and navigate
-    useEffect(() => {
-    if (timeLeft === 0) {
-      if (score > 0) {
-        handleSaveScore()
-          .then(() => router.push('/leaderboard'))
-          .catch(() => router.push('/leaderboard'))
-      } else {
-        router.push('/leaderboard')
-      }
+  useEffect(() => {
+    if (!showHome && !showHelp) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      setTimeLeft(TIME_LIMIT);
+      timerRef.current = setInterval(() => setTimeLeft(t => t - 1), 1000);
     }
-  }, [timeLeft, score, router])
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [showHome, showHelp]);
 
+  useEffect(() => {
+    if (timeLeft === 0) {
+      const go = () => router.push('/leaderboard');
+      score > 0
+        ? handleSaveScore().then(go).catch(go)
+        : go();
+    }
+  }, [timeLeft, score, router]);
 
-
-
-  const startGame = async (mode: GameMode) => {
-    setGameMode(mode);
-    if (mode === 'daily' && !nickname) {
+  const startGame = async () => {
+    if (!nickname) {
       let n = '';
-      // keep prompting until non‑empty or user cancels
       while (!n) {
         n = prompt('Please enter a nickname (max 20 chars):', '')?.trim() || '';
-        if (!n) {
-          alert('A nickname is required for the Daily Challenge.');
-        }
+        if (!n) alert('A nickname is required for the Daily Challenge.');
       }
       const clean = n.slice(0, 20);
       setNickname(clean);
       localStorage.setItem('lexit_nick', clean);
     }
-    if (mode === 'daily') {
-      const r = await fetch('/api/seed');
-      const s = await r.json();
-      setSeedWord(s.seed.toUpperCase());
-    } else {
-      const arr = Array.from(dict.values());
-      const rand = arr[Math.floor(Math.random() * arr.length)] || 'STONE';
-      setSeedWord(rand.toUpperCase());
-    }
+    const r = await fetch('/api/seed');
+    const s = await r.json();
+    setSeedWord(s.seed.toUpperCase());
     setStack([]);
     setScore(0);
     setInput('');
@@ -185,74 +153,48 @@ useEffect(() => {
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
-    // ==== NEW: enforce minimum length ====
-    if (newWord.length > 0 && newWord.length < MIN_LEN) {
-      alert(`Words must be at least ${MIN_LEN} letters.`);
-      return;
-    }
-    if (newWord.length > MAX_LEN) {
-      alert(`Max word length is ${MAX_LEN}.`);
-      return;
-    }
+    if (newWord.length < MIN_LEN) { alert(`Words must be at least ${MIN_LEN} letters.`); return; }
+    if (newWord.length > MAX_LEN) { alert(`Max word length is ${MAX_LEN}.`); return; }
     const currentSeed = stack.length ? stack[stack.length - 1] : seedWord;
-    if (stack.includes(newWord) || newWord === currentSeed) {
-      alert('Already used that word!');
-      return;
-    }
-    if (!dict.has(newWord)) {
-      alert('Not a valid English word.');
-      return;
-    }
-    if (!isOneLetterDifferent(currentSeed, newWord)) {
-      alert('Must differ by exactly one letter.');
-      return;
-    }
+    if (stack.includes(newWord) || newWord === currentSeed) { alert('Already used that word!'); return; }
+    if (!dict.has(newWord)) { alert('Not a valid English word.'); return; }
+    if (!isOneLetterDifferent(currentSeed, newWord)) { alert('Must differ by exactly one letter.'); return; }
 
-    setStack((p) => [...p, newWord]);
-    setScore((s) => s + newWord.length);
+    setStack(p => [...p, newWord]);
+    setScore(s => s + newWord.length);
     setInput('');
     if (POP_INTERVALS.includes(score + 1)) burst();
     inputRef.current?.blur();
   }, [input, seedWord, stack, score, dict]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      submitWord();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); submitWord(); }
   };
 
   const onVKPress = (key: string) => {
-    if (key === 'ENTER') {
-      submitWord();
-      return;
-    }
-    if (key === 'DEL') {
-      setInput((v) => v.slice(0, -1));
-      return;
-    }
+    if (key === 'ENTER') { submitWord(); return; }
+    if (key === 'DEL') { setInput(v => v.slice(0, -1)); return; }
     if (input.length >= MAX_LEN) return;
-    setInput((v) => (v + key).toUpperCase());
+    setInput(v => (v + key).toUpperCase());
   };
 
   const handleSaveScore = async () => {
     if (submitState !== 'idle') return;
     setSubmitState('saving');
     try {
-      const dk = gameMode === 'daily' ? buildDayKey() : undefined;
       const payload = {
         name: nickname || 'Anon',
-        mode: gameMode,
+        mode: 'daily' as GameMode,
         score,
         startSeed: seedWord,
         endSeed: stack.at(-1) ?? seedWord,
-        dayKey: dk,
+        dayKey: buildDayKey(),
       };
       const res: SaveScoreResult = await saveScore(payload);
       if (!res.ok) throw new Error(res.error || 'save failed');
       setSubmitState('saved');
-      gaEvent('submit_score', { score, mode: gameMode });
-    } catch (e) {
+      gaEvent('submit_score', { score, mode: 'daily' });
+    } catch (e: any) {
       console.error(e);
       alert('Could not save score.');
       setSubmitState('idle');
@@ -260,17 +202,10 @@ useEffect(() => {
   };
 
   const handleShare = () => {
-    const text = `I scored ${score} in ${
-      gameMode === 'daily' ? 'the Daily Challenge' : 'Endless Mode'
-    } on Lexit!`;
-    const base =
-  process.env.NEXT_PUBLIC_BASE_URL ??
-  (typeof window !== 'undefined' ? window.location.origin : '');
-  const url = base;
+    const text = `I scored ${score} in today's Daily Challenge on Lexit!`;
+    const url = window.location.origin;
     if (navigator.share) {
-      navigator
-        .share({ text, url })
-        .catch(() => navigator.clipboard.writeText(`${text} ${url}`));
+      navigator.share({ text, url }).catch(() => navigator.clipboard.writeText(`${text} ${url}`));
     } else {
       navigator.clipboard.writeText(`${text} ${url}`);
       alert('Link copied!');
@@ -279,7 +214,7 @@ useEffect(() => {
 
   const changeNick = () => {
     const n = prompt('Enter a new nickname (max 20 chars):', nickname) || '';
-    const clean = n.trim().slice(0, 20);
+    const clean = n.slice(0, 20);
     setNickname(clean);
     localStorage.setItem('lexit_nick', clean);
   };
@@ -293,60 +228,36 @@ useEffect(() => {
   };
 
   if (showHome) {
-    return (
-      <HomeScreen
-        nickname={nickname}
-        onNicknameChange={changeNick}
-        onStart={startGame}
-      />
-    );
+    return <HomeScreen nickname={nickname} onNicknameChange={changeNick} onStart={startGame} />;
   }
 
   const latestSeed = stack.length ? stack[stack.length - 1] : seedWord;
-  const pastWords =
-    stack.length === 0 ? [] : [seedWord, ...stack.slice(0, -1)];
-  const canSubmitScore = score > 0 && submitState !== 'saved';
+  const pastWords = stack.length === 0 ? [] : [seedWord, ...stack.slice(0, -1)];
 
   function formatTime(seconds: number) {
-  if (seconds >= 60) {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    // pad single‑digit secs to two digits
-    return `${mins}:${secs.toString().padStart(2, '0')}`
+    if (seconds >= 60) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${seconds}`;
   }
-  return `${seconds}`
-}
 
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
       <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
 
-      {/* Top bar: Back / Timer / Share & Board */}
+      {/* Top bar */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between max-w-md mx-auto px-4">
-        <button
-          onClick={backHome}
-          className="text-[#334155] underline"
-        >
-          ← Back
-        </button>
-
-        {/* updated timer */}
+        <button onClick={backHome} className="text-[#334155] underline">← Back</button>
         <div className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center justify-center text-lg font-semibold">
           {formatTime(timeLeft)}
         </div>
-
         <div className="flex gap-2">
-          <button
-            onClick={() => { /* your existing share logic */ }}
-            className="h-10 px-4 rounded-xl bg-[#3BB2F6] text-white flex items-center gap-2"
-          >
+          <button onClick={handleShare} className="h-10 px-4 rounded-xl bg-[#3BB2F6] text-white flex items-center gap-2">
             <FaShareAlt /> Share
           </button>
-
-          <a
-            href="/leaderboard"
-            className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center gap-2"
-          >
+          <a href="/leaderboard" className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center gap-2">
             <FaList /> Board
           </a>
         </div>
@@ -355,42 +266,29 @@ useEffect(() => {
       {/* Input area */}
       <div className="w-full max-w-md px-4 mt-20 relative">
         <div className="flex gap-2 items-center mb-2 relative">
-          <span className="absolute right-20 top-1/2 -translate-y-1/2 text-[#334155]">
-            {score}
-          </span>
+          <span className="absolute right-20 top-1/2 -translate-y-1/2 text-[#334155]">{score}</span>
           <input
             ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value.toUpperCase())}
+            onChange={e => setInput(e.target.value.toUpperCase())}
             onKeyDown={onKeyDown}
             maxLength={MAX_LEN}
             placeholder="ENTER WORD"
             className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
             inputMode="none"
-            onFocus={(e) => e.target.blur()}
+            onFocus={e => e.target.blur()}
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
           />
-          <button
-            onClick={submitWord}
-            className="h-14 w-14 rounded-xl bg-[#3BB2F6] flex items-center justify-center text-white text-xl"
-          >
-            <FaPaperPlane />
+          <button onClick={submitWord} className="h-14 w-14 rounded-xl bg-[#3BB2F6] flex items-center justify-center text-white text-xl">
+            ↵
           </button>
         </div>
-        
 
-        {/* current seed */}
         {!showHelp && (
-          <motion.div
-            key={latestSeed}
-            variants={popVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4"
-          >
+          <motion.div key={latestSeed} variants={popVariants} initial="initial" animate="animate" exit="exit"
+            className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4">
             {latestSeed}
           </motion.div>
         )}
@@ -399,21 +297,12 @@ useEffect(() => {
       {/* Past words */}
       <div className="w-full max-w-md px-4 flex-1 overflow-hidden">
         <AnimatePresence initial={false}>
-          {pastWords
-            .slice()
-            .reverse()
-            .map((w) => (
-              <motion.div
-                key={w}
-                variants={popVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-70"
-              >
-                {w}
-              </motion.div>
-            ))}
+          {pastWords.slice().reverse().map(w => (
+            <motion.div key={w} variants={popVariants} initial="initial" animate="animate" exit="exit"
+              className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-70">
+              {w}
+            </motion.div>
+          ))}
         </AnimatePresence>
       </div>
 
@@ -421,46 +310,17 @@ useEffect(() => {
       <div className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none">
         <div className="max-w-md w-full backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto mx-auto">
           {KB_ROWS.map((row, idx) => (
-            <div
-              key={idx}
-              className="flex justify-center gap-2 mb-2 last:mb-0 flex-nowrap"
-            >
-              {row.map((k) => {
-                const isEnter = k === 'ENTER';
-                const isDel = k === 'DEL';
-                const base =
-                  'h-12 rounded-xl text-lg font-semibold flex items-center justify-center';
+            <div key={idx} className="flex justify-center gap-2 mb-2 last:mb-0 flex-nowrap">
+              {row.map(k => {
+                const isEnter = k === 'ENTER', isDel = k === 'DEL';
+                const base = 'h-12 rounded-xl text-lg font-semibold flex items-center justify-center';
                 if (isEnter) {
-                  return (
-                    <button
-                      key={k}
-                      onClick={() => onVKPress(k)}
-                      className={`${base} w-16 bg-[#3BB2F6] text-white`}
-                    >
-                      ↵
-                    </button>
-                  );
+                  return <button key={k} onClick={() => onVKPress(k)} className={`${base} w-16 bg-[#3BB2F6] text-white`}>↵</button>;
                 }
                 if (isDel) {
-                  return (
-                    <button
-                      key={k}
-                      onClick={() => onVKPress(k)}
-                      className={`${base} w-16 bg-[#F1F5F9] text-[#334155]`}
-                    >
-                      ⌫
-                    </button>
-                  );
+                  return <button key={k} onClick={() => onVKPress(k)} className={`${base} w-16 bg-[#F1F5F9] text-[#334155]`}>⌫</button>;
                 }
-                return (
-                  <button
-                    key={k}
-                    onClick={() => onVKPress(k)}
-                    className={`${base} w-10 bg-[#F1F5F9] text-[#334155]`}
-                  >
-                    {k}
-                  </button>
-                );
+                return <button key={k} onClick={() => onVKPress(k)} className={`${base} w-10 bg-[#F1F5F9] text-[#334155]`}>{k}</button>;
               })}
             </div>
           ))}
@@ -478,20 +338,12 @@ function HomeScreen({
 }: {
   nickname: string;
   onNicknameChange: () => void;
-  onStart: (mode: GameMode) => void;
+  onStart: () => void;
 }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden overscroll-none">
-      <motion.div
-        initial="hidden"
-        animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }}
-        className="w-full max-w-md px-6 space-y-6"
-      >
-        <motion.h1
-          variants={childFall}
-          className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}
-        >
+      <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }} className="w-full max-w-md px-6 space-y-6">
+        <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>
           Lexit
         </motion.h1>
 
@@ -499,32 +351,15 @@ function HomeScreen({
           A little goes a long way
         </motion.p>
 
-        <motion.button
-          variants={childFall}
-          onClick={() => onStart('endless')}
-          className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow"
-        >
-          Endless Mode
-        </motion.button>
-
-        <motion.button
-          variants={childFall}
-          onClick={() => onStart('daily')}
-          className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow"
-        >
+        <motion.button variants={childFall} onClick={onStart} className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow">
           Daily Challenge
         </motion.button>
 
-        <motion.div
-          variants={childFall}
-          className="text-sm text-[#334155] underline cursor-pointer"
-          onClick={onNicknameChange}
-        >
+        <motion.div variants={childFall} className="text-sm text-[#334155] underline cursor-pointer" onClick={onNicknameChange}>
           Change nickname {nickname ? `(@${nickname})` : ''}
         </motion.div>
       </motion.div>
 
-      {/* Creator credit near bottom */}
       <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60">
         Created By: Nuiche
       </div>
