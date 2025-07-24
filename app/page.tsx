@@ -382,16 +382,18 @@ useEffect(() => {
         
 
         {/* current seed */}
-        <motion.div
-          key={latestSeed}
-          variants={popVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4"
-        >
-          {latestSeed}
-        </motion.div>
+        {!showHelp && (
+          <motion.div
+            key={latestSeed}
+            variants={popVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4"
+          >
+            {latestSeed}
+          </motion.div>
+        )}
       </div>
 
       {/* Past words */}
