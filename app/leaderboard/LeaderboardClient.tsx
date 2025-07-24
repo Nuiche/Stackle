@@ -54,7 +54,7 @@ export default function LeaderboardClient() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F1F5F9] to-white text-[#334155] p-4 pb-16">
       <div className="max-w-md mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-6">Global Rankings</h1>
+        {/*<h1 className="text-3xl font-bold text-center mb-6">Global Rankings</h1>*/}
 
         <Section title="Daily Challenge" rows={daily} />
         <Section title="Recent Games" rows={recent} />
