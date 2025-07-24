@@ -19,6 +19,7 @@ import { titleFont } from '@/lib/fonts';
 
 // ---------- constants ----------
 const MAX_LEN = 8;
+const MIN_LEN = 4;    // ← enforce at least 4 letters
 const POP_INTERVALS = [5, 12, 21, 32, 45];
 
 const KB_ROWS = [
@@ -130,6 +131,11 @@ export default function Page() {
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
+    // ==== NEW: enforce minimum length ====
+    if (newWord.length > 0 && newWord.length < MIN_LEN) {
+      alert(`Words must be at least ${MIN_LEN} letters.`);
+      return;
+    }
     if (newWord.length > MAX_LEN) {
       alert(`Max word length is ${MAX_LEN}.`);
       return;
