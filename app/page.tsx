@@ -85,6 +85,11 @@ export default function Page() {
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
 
+  // Add this right after your existing UI & game‐mode state:
+   const TIME_LIMIT = 90;          // 1.5 minutes in seconds
+   const [timeLeft, setTimeLeft] = useState<number>(TIME_LIMIT);
+   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   // game
   const [nickname, setNickname] = useState('');
   const [gameMode, setGameMode] = useState<GameMode>('endless');
@@ -97,6 +102,9 @@ export default function Page() {
     'idle'
   );
 
+   
+
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -105,9 +113,33 @@ export default function Page() {
     if (saved) setNickname(saved);
   }, []);
 
-  useEffect(() => {
-    if (!showHome) inputRef.current?.focus();
-  }, [showHome]);
+  // Focus input when we leave the home screen
+useEffect(() => {
+  if (!showHome) inputRef.current?.focus();
+}, [showHome]);
+
+    // Start countdown once the help modal closes
+    useEffect(() => {
+      if (!showHome && !showHelp) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        setTimeLeft(TIME_LIMIT);
+        timerRef.current = setInterval(() => {
+          setTimeLeft(t => t - 1);
+        }, 1000);
+      }
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
+    }, [showHome, showHelp]);
+
+    // When timer hits zero, auto‐submit and navigate
+    useEffect(() => {
+      if (timeLeft === 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        handleSaveScore();
+      }
+    }, [timeLeft]);
+
 
   const startGame = async (mode: GameMode) => {
     setGameMode(mode);
@@ -292,6 +324,15 @@ export default function Page() {
             <FaPaperPlane />
           </button>
         </div>
+        {/* Timer display */}
+          <div
+            className="w-full rounded-xl bg-[#D1D5DB] text-white text-2xl font-bold text-center py-3 mb-4"
+          >
+            {timeLeft > 59
+              ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2,'0')}`
+              : timeLeft
+            }
+          </div>
 
         {/* current seed */}
         <motion.div
