@@ -330,7 +330,8 @@ useEffect(() => {
           ← Back
         </button>
 
-        <div className="w-1/4 bg-[#CBD2D9] rounded-xl text-white text-lg font-semibold text-center py-2">
+        {/* updated timer */}
+        <div className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center justify-center text-lg font-semibold">
           {formatTime(timeLeft)}
         </div>
 
