@@ -402,7 +402,7 @@ useEffect(() => {
       </div>
 
       {/* Virtual keyboard */}
-      <div className="fixed bottom-24 left-0 right-0 flex justify-center pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none">
         <div className="max-w-md w-full backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto mx-auto">
           {KB_ROWS.map((row, idx) => (
             <div
