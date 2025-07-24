@@ -11,6 +11,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // right before your return(...)
+  console.log('GA_ID is:', GA_ID);
+
   return (
     <html lang="en" className={titleFont.className}>
       <body className="min-h-screen bg-gradient-to-b from-white to-slate-200 text-[#334155]">
