@@ -7,6 +7,7 @@ import React, {
   KeyboardEvent,
   useCallback,
 } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { FaShareAlt, FaTrophy, FaListUl, FaPaperPlane } from 'react-icons/fa';
 
@@ -84,6 +85,7 @@ export default function Page() {
   // UI
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
+  const router = useRouter();
 
   // Add this right after your existing UI & game‐mode state:
    const TIME_LIMIT = 90;          // 1.5 minutes in seconds
@@ -134,11 +136,14 @@ useEffect(() => {
 
     // When timer hits zero, auto‐submit and navigate
     useEffect(() => {
-      if (timeLeft === 0) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        handleSaveScore();
-      }
-    }, [timeLeft]);
+    if (timeLeft === 0) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      handleSaveScore().then(() => {
+        router.push('/leaderboard');
+      });
+    }
+  }, [timeLeft, router]);
+
 
 
   const startGame = async (mode: GameMode) => {
@@ -297,6 +302,16 @@ useEffect(() => {
         ← Back
       </button>
 
+      {/* Timer display */}
+          <div
+            className="w-full rounded-xl bg-[#D1D5DB] text-white text-2xl font-bold text-center py-3 mb-4"
+          >
+            {timeLeft > 59
+              ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2,'0')}`
+              : timeLeft
+            }
+          </div>
+
       {/* Input area */}
       <div className="w-full max-w-md px-4 mt-20 relative">
         <div className="flex gap-2 items-center mb-2 relative">
@@ -324,15 +339,7 @@ useEffect(() => {
             <FaPaperPlane />
           </button>
         </div>
-        {/* Timer display */}
-          <div
-            className="w-full rounded-xl bg-[#D1D5DB] text-white text-2xl font-bold text-center py-3 mb-4"
-          >
-            {timeLeft > 59
-              ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2,'0')}`
-              : timeLeft
-            }
-          </div>
+        
 
         {/* current seed */}
         <motion.div
