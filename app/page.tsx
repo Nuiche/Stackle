@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { FaShareAlt, FaTrophy, FaListUl, FaPaperPlane } from 'react-icons/fa';
+import { FaShareAlt, FaTrophy, FaListUl, FaPaperPlane, FaList } from 'react-icons/fa';
 
 import { burst } from '@/lib/confetti';
 import { gaEvent } from '@/lib/gtag'
@@ -294,17 +294,50 @@ useEffect(() => {
     stack.length === 0 ? [] : [seedWord, ...stack.slice(0, -1)];
   const canSubmitScore = score > 0 && submitState !== 'saved';
 
+  function formatTime(seconds: number) {
+  if (seconds >= 60) {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    // pad single‑digit secs to two digits
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+  return `${seconds}`
+}
+
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
       <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
 
-      {/* Back */}
-      <button
-        onClick={backHome}
-        className="absolute left-4 top-4 text-[#334155] underline"
-      >
-        ← Back
-      </button>
+      {/* Top bar: Back / Timer / Share & Board */}
+      <div className="absolute top-4 inset-x-0 flex items-center justify-between max-w-md mx-auto px-4">
+        <button
+          onClick={backHome}
+          className="text-[#334155] underline"
+        >
+          ← Back
+        </button>
+
+        <div className="w-1/4 bg-[#CBD2D9] rounded-xl text-white text-lg font-semibold text-center py-2">
+          {formatTime(timeLeft)}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => { /* your existing share logic */ }}
+            className="h-10 px-4 rounded-xl bg-[#3BB2F6] text-white flex items-center gap-2"
+          >
+            <FaShareAlt /> Share
+          </button>
+
+          <a
+            href="/leaderboard"
+            className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center gap-2"
+          >
+            <FaList /> Board
+          </a>
+        </div>
+      </div>
+
 
       {/* Timer display, above the submission box */}
       <div className="w-1/4 mx-auto rounded-xl bg-[#CBD5E1] text-white text-2xl font-bold text-center py-2 mb-4">
@@ -424,26 +457,6 @@ useEffect(() => {
               })}
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Bottom buttons */}
-      <div className="fixed bottom-4 left-0 right-0 flex justify-center">
-        <div className="bg-[#334155]/80 backdrop-blur-sm rounded-3xl px-3 py-2 flex gap-3">
-          <button
-            onClick={handleShare}
-            className="h-10 px-4 rounded-xl bg-[#3BB2F6] text-white flex items-center gap-2"
-          >
-            <FaShareAlt /> Share
-          </button>
-          
-
-          <a
-            href="/leaderboard"
-            className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center gap-2"
-          >
-            <FaListUl /> Board
-          </a>
         </div>
       </div>
     </div>
