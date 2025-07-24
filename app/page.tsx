@@ -302,15 +302,13 @@ useEffect(() => {
         ← Back
       </button>
 
-      {/* Timer display */}
-          <div
-            className="w-full rounded-xl bg-[#D1D5DB] text-white text-2xl font-bold text-center py-3 mb-4"
-          >
-            {timeLeft > 59
-              ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2,'0')}`
-              : timeLeft
-            }
-          </div>
+      {/* Timer display, above the submission box */}
+      <div className="w-1/4 mx-auto rounded-xl bg-[#D1D5DB] text-white text-2xl font-bold text-center py-2 mb-4">
+        {timeLeft > 59
+          ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
+          : timeLeft
+        }
+      </div>
 
       {/* Input area */}
       <div className="w-full max-w-md px-4 mt-20 relative">
