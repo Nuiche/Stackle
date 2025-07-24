@@ -5,8 +5,6 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import LeaderboardClient from './LeaderboardClient';
 
-export const revalidate = 120;
-
 export default function Page() {
   const router = useRouter();
 
@@ -20,7 +18,7 @@ export default function Page() {
         ← Back
       </button>
 
-      {/* Your existing client */}
+      {/* Your existing leaderboard client */}
       <LeaderboardClient />
     </div>
   );
