@@ -311,7 +311,7 @@ useEffect(() => {
       </div>
 
       {/* Input area */}
-      <div className="w-full max-w-md px-4 mt-20 relative">
+      <div className="w-full max-w-md px-4 mt-4 relative">
         <div className="flex gap-2 items-center mb-2 relative">
           <span className="absolute right-20 top-1/2 -translate-y-1/2 text-[#334155]">
             {score}
