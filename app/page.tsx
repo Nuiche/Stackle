@@ -392,9 +392,9 @@ function HomeScreen({
           Daily Challenge
         </motion.button>
 
-        <motion.div
+         <motion.div
           variants={childFall}
-          className="flex justify-center items-center space-x-4 text-sm text-[#334155] mt-4 w-full"
+          className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1"
         >
           <div className="underline cursor-pointer" onClick={onNicknameChange}>
             Change nickname {nickname ? `(@${nickname})` : ''}
