@@ -53,8 +53,9 @@ const isOneLetterDifferent = (a: string, b: string) => {
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0, j = 0, edits = 0;
   while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) { i++; j++; }
-    else {
+    if (a[i] === b[j]) {
+      i++; j++;
+    } else {
       edits++;
       if (edits > 1) return false;
       if      (a.length > b.length) i++;
@@ -67,7 +68,7 @@ const isOneLetterDifferent = (a: string, b: string) => {
 };
 
 async function fetchDictionary(): Promise<Set<string>> {
-  const res = await fetch('/api/dictionary');
+  const res  = await fetch('/api/dictionary');
   const data = (await res.json()) as string[];
   return new Set(data);
 }
@@ -82,7 +83,7 @@ export default function Page() {
 
   // Timer
   const TIME_LIMIT = 90;
-  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
+  const [timeLeft, setTimeLeft] = useState<number>(TIME_LIMIT);
   const timerRef = useRef<number | null>(null);
 
   // Game state
@@ -109,7 +110,7 @@ export default function Page() {
     }, 500);
   };
 
-  // Prevent overflow and flash‑red
+  // Prevent overflow and flash-red
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     if (raw.length > MAX_LEN) {
@@ -124,14 +125,14 @@ export default function Page() {
     }
   };
 
-  // Load dictionary and nickname
+  // Load dictionary & saved nickname
   useEffect(() => {
     fetchDictionary().then(setDict);
     const saved = localStorage.getItem('lexit_nick');
     if (saved) setNickname(saved);
   }, []);
 
-  // Auto‑focus on start
+  // Auto-focus input when game starts
   useEffect(() => {
     if (!showHome) inputRef.current?.focus();
   }, [showHome]);
@@ -148,7 +149,7 @@ export default function Page() {
     };
   }, [showHome, showHelp]);
 
-  // Redirect on timer end
+  // Redirect when timer hits zero
   useEffect(() => {
     if (timeLeft > 0) return;
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
@@ -180,6 +181,7 @@ export default function Page() {
     }
   }, [timeLeft, score, nickname, seedWord, stack, router]);
 
+  // Start game
   const startGame = async () => {
     if (!nickname) {
       let n = '';
@@ -198,6 +200,7 @@ export default function Page() {
     setShowHome(false); setShowHelp(true);
   };
 
+  // Submit word
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
@@ -208,8 +211,9 @@ export default function Page() {
       return;
     }
 
-    // 2. Already used (includes seed)
-    if (stack.includes(newWord) || newWord === seedWord) {
+    // 2. Already used OR seed
+    const previousWords = [seedWord, ...stack];
+    if (previousWords.includes(newWord)) {
       const container = stackRef.current;
       if (container) {
         Array.from(container.children).forEach(child =>
@@ -247,7 +251,7 @@ export default function Page() {
       return;
     }
 
-    // Valid!
+    // Valid
     setStack(p => [...p, newWord]);
     setScore(s => s + newWord.length);
     setInput('');
@@ -255,13 +259,13 @@ export default function Page() {
     inputRef.current?.blur();
   }, [input, seedWord, stack, score, dict]);
 
+  // Handlers
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       submitWord();
     }
   };
-
   const onVKPress = (key: string) => {
     if (key === 'ENTER') { submitWord(); return; }
     if (key === 'DEL')   { setInput(v => v.slice(0, -1)); return; }
@@ -275,7 +279,6 @@ export default function Page() {
     }
     setInput(v => (v + key).toUpperCase());
   };
-
   const handleShare = () => {
     const text = `I scored ${score} in today's Daily Challenge on Lexit!`;
     const url  = window.location.origin;
@@ -285,30 +288,21 @@ export default function Page() {
       );
     } else {
       navigator.clipboard.writeText(`${text} ${url}`);
-      alert('Link copied!');
     }
   };
-
   const changeNick = () => {
     const n = prompt('Enter a new nickname (max 20 chars):', nickname) || '';
     const clean = n.slice(0,20);
     setNickname(clean);
     localStorage.setItem('lexit_nick', clean);
   };
-
   const backHome = () => {
     setShowHome(true);
     setStack([]); setScore(0); setInput(''); setSubmitState('idle');
   };
 
   if (showHome) {
-    return (
-      <HomeScreen
-        nickname={nickname}
-        onNicknameChange={changeNick}
-        onStart={startGame}
-      />
-    );
+    return <HomeScreen nickname={nickname} onNicknameChange={changeNick} onStart={startGame} />;
   }
 
   const latestSeed = stack.length ? stack[stack.length - 1] : seedWord;
@@ -425,7 +419,7 @@ export default function Page() {
   );
 }
 
-// ---------- Home screen (unchanged) ----------
+// ---------- Home screen ----------
 function HomeScreen({
   nickname,
   onNicknameChange,
@@ -464,12 +458,14 @@ function HomeScreen({
             Change nickname {nickname ? `(@${nickname})` : ''}
           </div>
           <span>|</span>
-          <div>Leader: {currentLeader ? `${currentLeader.name} - ${currentLeader.score}` : 'Loading...'}</div>
+          <div>
+            Leader: {currentLeader ? `${currentLeader.name} - ${currentLeader.score}` : 'Loading...'}
+          </div>
         </motion.div>
       </motion.div>
       <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60">
         Created By: Nuiche
       </div>
     </div>
-);
+  );
 }
