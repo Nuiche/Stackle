@@ -7,6 +7,7 @@ import React, {
   useRef,
   KeyboardEvent,
   useCallback,
+  ChangeEvent,
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
@@ -22,13 +23,13 @@ import { getDailyLeaderboard } from '@/lib/getLeaderboard';
 
 // ---------- constants ----------
 const MAX_LEN = 8;
-const MIN_LEN = 4;    // enforce at least 4 letters
-const POP_INTERVALS = [10, 25, 50, 75, 100, 125, 150, 175, 200]; // scores at which to burst confetti
+const MIN_LEN = 4;
+const POP_INTERVALS = [10, 25, 50, 75, 100, 125, 150, 175, 200];
 
 const KB_ROWS = [
-  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'],
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['ENTER','Z','X','C','V','B','N','M','DEL'],
 ];
 
 const popVariants: Variants = {
@@ -44,11 +45,7 @@ const popVariants: Variants = {
 
 const childFall: Variants = {
   hidden: { opacity: 0, y: -40 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring', stiffness: 200, damping: 18 },
-  },
+  show:  { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 18 } },
 };
 
 // ---------- helpers ----------
@@ -56,12 +53,11 @@ const isOneLetterDifferent = (a: string, b: string) => {
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0, j = 0, edits = 0;
   while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      i++; j++;
-    } else {
+    if (a[i] === b[j]) { i++; j++; }
+    else {
       edits++;
       if (edits > 1) return false;
-      if (a.length > b.length) i++;
+      if      (a.length > b.length) i++;
       else if (b.length > a.length) j++;
       else { i++; j++; }
     }
@@ -72,96 +68,186 @@ const isOneLetterDifferent = (a: string, b: string) => {
 
 async function fetchDictionary(): Promise<Set<string>> {
   const res = await fetch('/api/dictionary');
-  const data: string[] = await res.json();
+  const data = (await res.json()) as string[];
   return new Set(data);
 }
 
 // ---------- component ----------
 export default function Page() {
+  const router = useRouter();
+
   // UI state
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
-  const router = useRouter();
 
   // Timer
   const TIME_LIMIT = 90;
-  const [timeLeft, setTimeLeft] = useState<number>(TIME_LIMIT);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
+  const timerRef = useRef<number | null>(null);
 
-  // Game state (daily only)
+  // Game state
   const [nickname, setNickname] = useState('');
   const [seedWord, setSeedWord] = useState('TREAT');
-  const [stack, setStack] = useState<string[]>([]);
-  const [score, setScore] = useState(0);
-  const [input, setInput] = useState('');
-  const [dict, setDict] = useState<Set<string>>(new Set());
-  const [submitState, setSubmitState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [stack, setStack]     = useState<string[]>([]);
+  const [score, setScore]     = useState(0);
+  const [input, setInput]     = useState('');
+  const [dict, setDict]       = useState<Set<string>>(new Set());
+  const [submitState, setSubmitState] = useState<'idle'|'saving'|'saved'>('idle');
 
+  // Refs for animations
   const inputRef = useRef<HTMLInputElement>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
+  const seedRef  = useRef<HTMLDivElement>(null);
 
+  // Shake input and clear
+  const shakeAndClear = (el: HTMLElement | null) => {
+    if (!el) return;
+    el.classList.add('shake');
+    setTimeout(() => {
+      el.classList.remove('shake');
+      setInput('');
+    }, 500);
+  };
+
+  // Prevent overflow and flash‑red
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (raw.length > MAX_LEN) {
+      const el = inputRef.current;
+      if (el) {
+        el.classList.add('flash-red');
+        setTimeout(() => el.classList.remove('flash-red'), 300);
+      }
+      setInput(raw.slice(0, MAX_LEN).toUpperCase());
+    } else {
+      setInput(raw.toUpperCase());
+    }
+  };
+
+  // Load dictionary and nickname
   useEffect(() => {
     fetchDictionary().then(setDict);
     const saved = localStorage.getItem('lexit_nick');
     if (saved) setNickname(saved);
   }, []);
 
+  // Auto‑focus on start
   useEffect(() => {
     if (!showHome) inputRef.current?.focus();
   }, [showHome]);
 
+  // Timer setup/cleanup
   useEffect(() => {
     if (!showHome && !showHelp) {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current !== null) window.clearInterval(timerRef.current);
       setTimeLeft(TIME_LIMIT);
-      timerRef.current = setInterval(() => setTimeLeft(t => t - 1), 1000);
+      timerRef.current = window.setInterval(() => setTimeLeft(t => t - 1), 1000);
     }
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current !== null) window.clearInterval(timerRef.current);
     };
   }, [showHome, showHelp]);
 
+  // Redirect on timer end
   useEffect(() => {
-    if (timeLeft === 0) {
-      const go = () => router.push(`/leaderboard?endSeed=${encodeURIComponent(latestSeed)}&score=${score}`);
-
-      score > 0
-        ? handleSaveScore().then(go).catch(go)
-        : go();
+    if (timeLeft > 0) return;
+    if (timerRef.current !== null) window.clearInterval(timerRef.current);
+    const endSeed = stack.length ? stack[stack.length - 1] : seedWord;
+    const navigate = () => {
+      router.push(`/leaderboard?endSeed=${encodeURIComponent(endSeed)}&score=${score}`);
+    };
+    if (score > 0) {
+      (async () => {
+        try {
+          const payload = {
+            name: nickname || 'Anon',
+            mode: 'daily' as GameMode,
+            score,
+            startSeed: seedWord,
+            endSeed,
+            dayKey: buildDayKey(),
+          };
+          const res: SaveScoreResult = await saveScore(payload);
+          if (res.ok) gaEvent('submit_score', { score, mode: 'daily' });
+        } catch {
+          // ignore
+        } finally {
+          navigate();
+        }
+      })();
+    } else {
+      navigate();
     }
-  }, [timeLeft, score, router]);
+  }, [timeLeft, score, nickname, seedWord, stack, router]);
 
   const startGame = async () => {
     if (!nickname) {
       let n = '';
       while (!n) {
-        n = prompt('Please enter a nickname (max 20 chars):', '')?.trim() || '';
-        if (!n) alert('A nickname is required for the Daily Challenge.');
+        n = prompt('Please enter a nickname (max 20 chars):','')?.trim() || '';
+        if (!n) alert('A nickname is required.');
       }
-      const clean = n.slice(0, 20);
+      const clean = n.slice(0,20);
       setNickname(clean);
       localStorage.setItem('lexit_nick', clean);
     }
     const r = await fetch('/api/seed');
     const s = await r.json();
     setSeedWord(s.seed.toUpperCase());
-    setStack([]);
-    setScore(0);
-    setInput('');
-    setSubmitState('idle');
-    setShowHome(false);
-    setShowHelp(true);
+    setStack([]); setScore(0); setInput(''); setSubmitState('idle');
+    setShowHome(false); setShowHelp(true);
   };
 
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
-    if (newWord.length < MIN_LEN) { alert(`Words must be at least ${MIN_LEN} letters.`); setInput(''); return; }
-    if (newWord.length > MAX_LEN) { alert(`Max word length is ${MAX_LEN}.`); setInput(''); return; }
-    const currentSeed = stack.length ? stack[stack.length - 1] : seedWord;
-    if (stack.includes(newWord) || newWord === currentSeed) { alert('Already used that word!'); setInput(''); return; }
-    if (!dict.has(newWord)) { alert('Not a valid English word.'); setInput(''); return; }
-    if (!isOneLetterDifferent(currentSeed, newWord)) { alert('Must differ by exactly one letter.'); setInput(''); return; }
 
+    // 1. Too short
+    if (newWord.length < MIN_LEN) {
+      shakeAndClear(inputRef.current);
+      return;
+    }
+
+    // 2. Already used (includes seed)
+    if (stack.includes(newWord) || newWord === seedWord) {
+      const container = stackRef.current;
+      if (container) {
+        Array.from(container.children).forEach(child =>
+          (child as HTMLElement).classList.add('flash-red')
+        );
+        setTimeout(() => {
+          Array.from(container.children).forEach(child =>
+            (child as HTMLElement).classList.remove('flash-red')
+          );
+          setInput('');
+        }, 500);
+      }
+      return;
+    }
+
+    // 3. Invalid English
+    if (!dict.has(newWord)) {
+      shakeAndClear(inputRef.current);
+      return;
+    }
+
+    // 4. Must differ by one letter
+    const currentSeed = stack.length ? stack[stack.length - 1] : seedWord;
+    if (!isOneLetterDifferent(currentSeed, newWord)) {
+      const el1 = inputRef.current, el2 = seedRef.current;
+      if (el1 && el2) {
+        el1.classList.add('shake');
+        el2.classList.add('shake');
+        setTimeout(() => {
+          el1.classList.remove('shake');
+          el2.classList.remove('shake');
+          setInput('');
+        }, 500);
+      }
+      return;
+    }
+
+    // Valid!
     setStack(p => [...p, newWord]);
     setScore(s => s + newWord.length);
     setInput('');
@@ -170,44 +256,33 @@ export default function Page() {
   }, [input, seedWord, stack, score, dict]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); submitWord(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitWord();
+    }
   };
 
   const onVKPress = (key: string) => {
     if (key === 'ENTER') { submitWord(); return; }
-    if (key === 'DEL') { setInput(v => v.slice(0, -1)); return; }
-    if (input.length >= MAX_LEN) return;
-    setInput(v => (v + key).toUpperCase());
-  };
-
-  const handleSaveScore = async () => {
-    if (submitState !== 'idle') return;
-    setSubmitState('saving');
-    try {
-      const payload = {
-        name: nickname || 'Anon',
-        mode: 'daily' as GameMode,
-        score,
-        startSeed: seedWord,
-        endSeed: stack.at(-1) ?? seedWord,
-        dayKey: buildDayKey(),
-      };
-      const res: SaveScoreResult = await saveScore(payload);
-      if (!res.ok) throw new Error(res.error || 'save failed');
-      setSubmitState('saved');
-      gaEvent('submit_score', { score, mode: 'daily' });
-    } catch (e: any) {
-      console.error(e);
-      alert('Could not save score.');
-      setSubmitState('idle');
+    if (key === 'DEL')   { setInput(v => v.slice(0, -1)); return; }
+    if (input.length >= MAX_LEN) {
+      const el = inputRef.current;
+      if (el) {
+        el.classList.add('flash-red');
+        setTimeout(() => el.classList.remove('flash-red'), 300);
+      }
+      return;
     }
+    setInput(v => (v + key).toUpperCase());
   };
 
   const handleShare = () => {
     const text = `I scored ${score} in today's Daily Challenge on Lexit!`;
-    const url = window.location.origin;
+    const url  = window.location.origin;
     if (navigator.share) {
-      navigator.share({ text, url }).catch(() => navigator.clipboard.writeText(`${text} ${url}`));
+      navigator.share({ text, url }).catch(() =>
+        navigator.clipboard.writeText(`${text} ${url}`)
+      );
     } else {
       navigator.clipboard.writeText(`${text} ${url}`);
       alert('Link copied!');
@@ -216,34 +291,36 @@ export default function Page() {
 
   const changeNick = () => {
     const n = prompt('Enter a new nickname (max 20 chars):', nickname) || '';
-    const clean = n.slice(0, 20);
+    const clean = n.slice(0,20);
     setNickname(clean);
     localStorage.setItem('lexit_nick', clean);
   };
 
   const backHome = () => {
     setShowHome(true);
-    setStack([]);
-    setScore(0);
-    setInput('');
-    setSubmitState('idle');
+    setStack([]); setScore(0); setInput(''); setSubmitState('idle');
   };
 
   if (showHome) {
-    return <HomeScreen nickname={nickname} onNicknameChange={changeNick} onStart={startGame} />;
+    return (
+      <HomeScreen
+        nickname={nickname}
+        onNicknameChange={changeNick}
+        onStart={startGame}
+      />
+    );
   }
 
   const latestSeed = stack.length ? stack[stack.length - 1] : seedWord;
-  const pastWords = stack.length === 0 ? [] : [seedWord, ...stack.slice(0, -1)];
+  const pastWords  = stack.length === 0 ? [] : [seedWord, ...stack.slice(0,-1)];
 
-  function formatTime(seconds: number) {
-    if (seconds >= 60) {
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatTime = (secs: number) => {
+    if (secs >= 60) {
+      const m = Math.floor(secs / 60), s = secs % 60;
+      return `${m}:${s.toString().padStart(2,'0')}`;
     }
-    return `${seconds}`;
-  }
+    return `${secs}`;
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
@@ -272,9 +349,8 @@ export default function Page() {
           <input
             ref={inputRef}
             value={input}
-            onChange={e => setInput(e.target.value.toUpperCase())}
+            onChange={handleInputChange}
             onKeyDown={onKeyDown}
-            maxLength={MAX_LEN}
             placeholder="ENTER WORD"
             className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
             inputMode="none"
@@ -289,19 +365,32 @@ export default function Page() {
         </div>
 
         {!showHelp && (
-          <motion.div key={latestSeed} variants={popVariants} initial="initial" animate="animate" exit="exit"
-            className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4">
+          <motion.div
+            ref={seedRef}
+            key={latestSeed}
+            variants={popVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4"
+          >
             {latestSeed}
           </motion.div>
         )}
       </div>
 
       {/* Past words */}
-      <div className="w-full max-w-md px-4 flex-1 overflow-hidden">
+      <div ref={stackRef} className="w-full max-w-md px-4 flex-1 overflow-hidden">
         <AnimatePresence initial={false}>
           {pastWords.slice().reverse().map(w => (
-            <motion.div key={w} variants={popVariants} initial="initial" animate="animate" exit="exit"
-              className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-70">
+            <motion.div
+              key={w}
+              variants={popVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-70"
+            >
               {w}
             </motion.div>
           ))}
@@ -313,38 +402,20 @@ export default function Page() {
         className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none"
         style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
       >
-
         <div className="max-w-md w-full backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto mx-auto">
           {KB_ROWS.map((row, idx) => (
             <div key={idx} className="flex justify-center gap-2 mb-2 last:mb-0 flex-nowrap">
               {row.map(k => {
-                const isEnter = k === 'ENTER', isDel = k === 'DEL';
-                const base = 'h-14 rounded-md text-lg font-semibold flex items-center justify-center';
-
+                const isEnter = k === 'ENTER';
+                const isDel   = k === 'DEL';
+                const base    = 'h-14 rounded-md text-lg font-semibold flex items-center justify-center';
                 if (isEnter) {
-                  return <button
-                          key={k}
-                          onPointerDown={() => onVKPress(k)}
-                          className={`${base} w-20 bg-[#3BB2F6] text-white`}
-                        >
-                        ↵</button>;
+                  return <button key={k} onPointerDown={() => onVKPress(k)} className={`${base} w-20 bg-[#3BB2F6] text-white`}>↵</button>;
                 }
                 if (isDel) {
-                  return <button
-                          key={k}
-                          onPointerDown={() => onVKPress(k)}
-                          className={`${base} w-20 bg-[#F1F5F9] text-[#334155]`}
-                        >
-                        ⌫</button>;
+                  return <button key={k} onPointerDown={() => onVKPress(k)} className={`${base} w-20 bg-[#F1F5F9] text-[#334155]`}>⌫</button>;
                 }
-                return <button
-                      key={k}
-                      onPointerDown={() => onVKPress(k)}
-                      className={`${base} w-14 bg-[#F1F5F9] text-[#334155]`}
-                    >
-                      {k}
-                    </button>
-                    ;
+                return <button key={k} onPointerDown={() => onVKPress(k)} className={`${base} w-14 bg-[#F1F5F9] text-[#334155]`}>{k}</button>;
               })}
             </div>
           ))}
@@ -354,7 +425,7 @@ export default function Page() {
   );
 }
 
-// ---------- Home screen ----------
+// ---------- Home screen (unchanged) ----------
 function HomeScreen({
   nickname,
   onNicknameChange,
@@ -377,38 +448,28 @@ function HomeScreen({
       }
     })();
   }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden overscroll-none">
       <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }} className="w-full max-w-md px-6 space-y-6">
         <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>
           Lexit
         </motion.h1>
-
-        <motion.p variants={childFall} className="text-[#334155] italic">
-          A little goes a long way
-        </motion.p>
-
+        <motion.p variants={childFall} className="text-[#334155] italic">A little goes a long way</motion.p>
         <motion.button variants={childFall} onClick={onStart} className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow">
           Daily Challenge
         </motion.button>
-
-         <motion.div
-          variants={childFall}
-          className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1"
-        >
+        <motion.div variants={childFall} className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1">
           <div className="underline cursor-pointer" onClick={onNicknameChange}>
             Change nickname {nickname ? `(@${nickname})` : ''}
           </div>
           <span>|</span>
-          <div>
-            Leader: {currentLeader ? `${currentLeader.name} - ${currentLeader.score}` : 'Loading...'}
-          </div>
+          <div>Leader: {currentLeader ? `${currentLeader.name} - ${currentLeader.score}` : 'Loading...'}</div>
         </motion.div>
       </motion.div>
-
       <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60">
         Created By: Nuiche
       </div>
     </div>
-  );
+);
 }
