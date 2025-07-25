@@ -58,7 +58,7 @@ const isOneLetterDifferent = (a: string, b: string) => {
     } else {
       edits++;
       if (edits > 1) return false;
-      if      (a.length > b.length) i++;
+      if (a.length > b.length) i++;
       else if (b.length > a.length) j++;
       else { i++; j++; }
     }
@@ -68,7 +68,7 @@ const isOneLetterDifferent = (a: string, b: string) => {
 };
 
 async function fetchDictionary(): Promise<Set<string>> {
-  const res  = await fetch('/api/dictionary');
+  const res = await fetch('/api/dictionary');
   const data = (await res.json()) as string[];
   return new Set(data);
 }
@@ -89,43 +89,25 @@ export default function Page() {
   // Game state
   const [nickname, setNickname] = useState('');
   const [seedWord, setSeedWord] = useState('TREAT');
-  const [stack, setStack]     = useState<string[]>([]);
-  const [score, setScore]     = useState(0);
-  const [input, setInput]     = useState('');
-  const [dict, setDict]       = useState<Set<string>>(new Set());
+  const [stack, setStack] = useState<string[]>([]);
+  const [score, setScore] = useState(0);
+  const [input, setInput] = useState('');
+  const [dict, setDict] = useState<Set<string>>(new Set());
   const [submitState, setSubmitState] = useState<'idle'|'saving'|'saved'>('idle');
 
-  // Refs for animations
+  // Ref for input focus
   const inputRef = useRef<HTMLInputElement>(null);
-  const stackRef = useRef<HTMLDivElement>(null);
-  const seedRef  = useRef<HTMLDivElement>(null);
 
-  // Shake input and clear
-  const shakeAndClear = (el: HTMLElement | null) => {
-    if (!el) return;
-    el.classList.add('shake');
-    setTimeout(() => {
-      el.classList.remove('shake');
-      setInput('');
-    }, 500);
-  };
+  // Handle simple clear on invalid input
+  const clearInput = () => setInput('');
 
-  // Prevent overflow and flash-red
+  // Prevent overflow on manual typing
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    if (raw.length > MAX_LEN) {
-      const el = inputRef.current;
-      if (el) {
-        el.classList.add('flash-red');
-        setTimeout(() => el.classList.remove('flash-red'), 300);
-      }
-      setInput(raw.slice(0, MAX_LEN).toUpperCase());
-    } else {
-      setInput(raw.toUpperCase());
-    }
+    const raw = e.target.value.toUpperCase();
+    setInput(raw.slice(0, MAX_LEN));
   };
 
-  // Load dictionary & saved nickname
+  // Load dictionary & nickname
   useEffect(() => {
     fetchDictionary().then(setDict);
     const saved = localStorage.getItem('lexit_nick');
@@ -154,32 +136,14 @@ export default function Page() {
     if (timeLeft > 0) return;
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
     const endSeed = stack.length ? stack[stack.length - 1] : seedWord;
-    const navigate = () => {
+    const go = () =>
       router.push(`/leaderboard?endSeed=${encodeURIComponent(endSeed)}&score=${score}`);
-    };
     if (score > 0) {
-      (async () => {
-        try {
-          const payload = {
-            name: nickname || 'Anon',
-            mode: 'daily' as GameMode,
-            score,
-            startSeed: seedWord,
-            endSeed,
-            dayKey: buildDayKey(),
-          };
-          const res: SaveScoreResult = await saveScore(payload);
-          if (res.ok) gaEvent('submit_score', { score, mode: 'daily' });
-        } catch {
-          // ignore
-        } finally {
-          navigate();
-        }
-      })();
+      handleSaveScore().finally(go);
     } else {
-      navigate();
+      go();
     }
-  }, [timeLeft, score, nickname, seedWord, stack, router]);
+  }, [timeLeft, score]);
 
   // Start game
   const startGame = async () => {
@@ -200,102 +164,82 @@ export default function Page() {
     setShowHome(false); setShowHelp(true);
   };
 
+  // Save score helper
+  const handleSaveScore = async () => {
+    if (submitState !== 'idle') return;
+    setSubmitState('saving');
+    try {
+      const payload = {
+        name: nickname||'Anon',
+        mode: 'daily' as GameMode,
+        score,
+        startSeed: seedWord,
+        endSeed: stack.at(-1) ?? seedWord,
+        dayKey: buildDayKey(),
+      };
+      const res = await saveScore(payload);
+      if (res.ok) gaEvent('submit_score',{score,mode:'daily'});
+      setSubmitState('saved');
+    } catch {
+      setSubmitState('idle');
+    }
+  };
+
   // Submit word
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
 
-    // 1. Too short
-    if (newWord.length < MIN_LEN) {
-      shakeAndClear(inputRef.current);
-      return;
-    }
+    // 1) Too short
+    if (newWord.length < MIN_LEN) { clearInput(); return; }
 
-    // 2. Already used OR seed
-    const previousWords = [seedWord, ...stack];
-    if (previousWords.includes(newWord)) {
-      const container = stackRef.current;
-      if (container) {
-        Array.from(container.children).forEach(child =>
-          (child as HTMLElement).classList.add('flash-red')
-        );
-        setTimeout(() => {
-          Array.from(container.children).forEach(child =>
-            (child as HTMLElement).classList.remove('flash-red')
-          );
-          setInput('');
-        }, 500);
-      }
-      return;
-    }
+    // 2) Already used or seed
+    const previous = [seedWord, ...stack];
+    if (previous.includes(newWord)) { clearInput(); return; }
 
-    // 3. Invalid English
-    if (!dict.has(newWord)) {
-      shakeAndClear(inputRef.current);
-      return;
-    }
+    // 3) Invalid English
+    if (!dict.has(newWord)) { clearInput(); return; }
 
-    // 4. Must differ by one letter
-    const currentSeed = stack.length ? stack[stack.length - 1] : seedWord;
-    if (!isOneLetterDifferent(currentSeed, newWord)) {
-      const el1 = inputRef.current, el2 = seedRef.current;
-      if (el1 && el2) {
-        el1.classList.add('shake');
-        el2.classList.add('shake');
-        setTimeout(() => {
-          el1.classList.remove('shake');
-          el2.classList.remove('shake');
-          setInput('');
-        }, 500);
-      }
-      return;
-    }
+    // 4) Must differ by one letter
+    const currentSeed = stack.length ? stack[stack.length-1] : seedWord;
+    if (!isOneLetterDifferent(currentSeed,newWord)) { clearInput(); return; }
 
     // Valid
-    setStack(p => [...p, newWord]);
-    setScore(s => s + newWord.length);
-    setInput('');
-    if (POP_INTERVALS.includes(score + 1)) burst();
+    setStack(p=>[...p,newWord]);
+    setScore(s=>s+newWord.length);
+    clearInput();
+    if (POP_INTERVALS.includes(score+1)) burst();
     inputRef.current?.blur();
-  }, [input, seedWord, stack, score, dict]);
+  },[input,seedWord,stack,score,dict]);
 
-  // Handlers
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      submitWord();
-    }
+    if (e.key==='Enter') { e.preventDefault(); submitWord(); }
   };
+
   const onVKPress = (key: string) => {
-    if (key === 'ENTER') { submitWord(); return; }
-    if (key === 'DEL')   { setInput(v => v.slice(0, -1)); return; }
-    if (input.length >= MAX_LEN) {
-      const el = inputRef.current;
-      if (el) {
-        el.classList.add('flash-red');
-        setTimeout(() => el.classList.remove('flash-red'), 300);
-      }
-      return;
-    }
-    setInput(v => (v + key).toUpperCase());
+    if (key==='ENTER') { submitWord(); return; }
+    if (key==='DEL')   { setInput(v=>v.slice(0,-1)); return; }
+    if (input.length>=MAX_LEN) return;
+    setInput(v=>(v+key).toUpperCase());
   };
+
   const handleShare = () => {
     const text = `I scored ${score} in today's Daily Challenge on Lexit!`;
     const url  = window.location.origin;
     if (navigator.share) {
-      navigator.share({ text, url }).catch(() =>
-        navigator.clipboard.writeText(`${text} ${url}`)
-      );
+      navigator.share({text,url}).catch(()=>navigator.clipboard.writeText(`${text} ${url}`));
     } else {
       navigator.clipboard.writeText(`${text} ${url}`);
     }
   };
+
   const changeNick = () => {
-    const n = prompt('Enter a new nickname (max 20 chars):', nickname) || '';
+    const n = prompt('Enter a new nickname (max 20 chars):',nickname)||'';
     const clean = n.slice(0,20);
     setNickname(clean);
-    localStorage.setItem('lexit_nick', clean);
+    localStorage.setItem('lexit_nick',clean);
   };
+
   const backHome = () => {
     setShowHome(true);
     setStack([]); setScore(0); setInput(''); setSubmitState('idle');
@@ -305,20 +249,20 @@ export default function Page() {
     return <HomeScreen nickname={nickname} onNicknameChange={changeNick} onStart={startGame} />;
   }
 
-  const latestSeed = stack.length ? stack[stack.length - 1] : seedWord;
-  const pastWords  = stack.length === 0 ? [] : [seedWord, ...stack.slice(0,-1)];
+  const latestSeed = stack.length ? stack[stack.length-1] : seedWord;
+  const pastWords = stack.length ? [seedWord,...stack.slice(0,-1)] : [];
 
-  const formatTime = (secs: number) => {
-    if (secs >= 60) {
-      const m = Math.floor(secs / 60), s = secs % 60;
+  function formatTime(sec: number) {
+    if (sec>=60) {
+      const m=Math.floor(sec/60),s=sec%60;
       return `${m}:${s.toString().padStart(2,'0')}`;
     }
-    return `${secs}`;
-  };
+    return `${sec}`;
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
-      <HowToModal open={showHelp} onClose={() => setShowHelp(false)} />
+      <HowToModal open={showHelp} onClose={()=>setShowHelp(false)} />
 
       {/* Top bar */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between max-w-md mx-auto px-4">
@@ -348,7 +292,6 @@ export default function Page() {
             placeholder="ENTER WORD"
             className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
             inputMode="none"
-            onFocus={e => e.target.blur()}
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
@@ -359,32 +302,19 @@ export default function Page() {
         </div>
 
         {!showHelp && (
-          <motion.div
-            ref={seedRef}
-            key={latestSeed}
-            variants={popVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4"
-          >
+          <motion.div key={latestSeed} variants={popVariants} initial="initial" animate="animate" exit="exit"
+            className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4">
             {latestSeed}
           </motion.div>
         )}
       </div>
 
       {/* Past words */}
-      <div ref={stackRef} className="w-full max-w-md px-4 flex-1 overflow-hidden">
+      <div className="w-full max-w-md px-4 flex-1 overflow-hidden">
         <AnimatePresence initial={false}>
           {pastWords.slice().reverse().map(w => (
-            <motion.div
-              key={w}
-              variants={popVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-70"
-            >
+            <motion.div key={w} variants={popVariants} initial="initial" animate="animate" exit="exit"
+              className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-70">
               {w}
             </motion.div>
           ))}
@@ -392,24 +322,17 @@ export default function Page() {
       </div>
 
       {/* Virtual keyboard */}
-      <div
-        className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none"
-        style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-      >
+      <div className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none"
+           style={{ touchAction:'manipulation', WebkitTapHighlightColor:'transparent' }}>
         <div className="max-w-md w-full backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto mx-auto">
           {KB_ROWS.map((row, idx) => (
             <div key={idx} className="flex justify-center gap-2 mb-2 last:mb-0 flex-nowrap">
               {row.map(k => {
-                const isEnter = k === 'ENTER';
-                const isDel   = k === 'DEL';
-                const base    = 'h-14 rounded-md text-lg font-semibold flex items-center justify-center';
-                if (isEnter) {
-                  return <button key={k} onPointerDown={() => onVKPress(k)} className={`${base} w-20 bg-[#3BB2F6] text-white`}>↵</button>;
-                }
-                if (isDel) {
-                  return <button key={k} onPointerDown={() => onVKPress(k)} className={`${base} w-20 bg-[#F1F5F9] text-[#334155]`}>⌫</button>;
-                }
-                return <button key={k} onPointerDown={() => onVKPress(k)} className={`${base} w-14 bg-[#F1F5F9] text-[#334155]`}>{k}</button>;
+                const isEnter = k==='ENTER', isDel = k==='DEL';
+                const base = 'h-14 rounded-md text-lg font-semibold flex items-center justify-center';
+                if (isEnter) return <button key={k} onPointerDown={()=>onVKPress(k)} className={`${base} w-20 bg-[#3BB2F6] text-white`}>↵</button>;
+                if (isDel)   return <button key={k} onPointerDown={()=>onVKPress(k)} className={`${base} w-20 bg-[#F1F5F9] text-[#334155]`}>⌫</button>;
+                return <button key={k} onPointerDown={()=>onVKPress(k)} className={`${base} w-14 bg-[#F1F5F9] text-[#334155]`}>{k}</button>;
               })}
             </div>
           ))}
@@ -419,7 +342,7 @@ export default function Page() {
   );
 }
 
-// ---------- Home screen ----------
+// ---------- Home screen (unchanged) ----------
 function HomeScreen({
   nickname,
   onNicknameChange,
@@ -445,27 +368,19 @@ function HomeScreen({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden overscroll-none">
-      <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }} className="w-full max-w-md px-6 space-y-6">
-        <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>
-          Lexit
-        </motion.h1>
+      <motion.div initial="hidden" animate="show" variants={{ hidden:{}, show:{ transition:{staggerChildren:0.35} } }} className="w-full max-w-md px-6 space-y-6">
+        <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>Lexit</motion.h1>
         <motion.p variants={childFall} className="text-[#334155] italic">A little goes a long way</motion.p>
-        <motion.button variants={childFall} onClick={onStart} className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow">
-          Daily Challenge
-        </motion.button>
+        <motion.button variants={childFall} onClick={onStart} className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow">Daily Challenge</motion.button>
         <motion.div variants={childFall} className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1">
           <div className="underline cursor-pointer" onClick={onNicknameChange}>
-            Change nickname {nickname ? `(@${nickname})` : ''}
+            Change nickname {nickname?`(@${nickname})`:''}
           </div>
           <span>|</span>
-          <div>
-            Leader: {currentLeader ? `${currentLeader.name} - ${currentLeader.score}` : 'Loading...'}
-          </div>
+          <div>Leader: {currentLeader?`${currentLeader.name} - ${currentLeader.score}`:'Loading...'}</div>
         </motion.div>
       </motion.div>
-      <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60">
-        Created By: Nuiche
-      </div>
+      <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60">Created By: Nuiche</div>
     </div>
   );
 }
