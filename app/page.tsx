@@ -307,20 +307,42 @@ export default function Page() {
       </div>
 
       {/* Virtual keyboard */}
-      <div className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none">
+      <div
+        className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none"
+        style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+      >
+
         <div className="max-w-md w-full backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto mx-auto">
           {KB_ROWS.map((row, idx) => (
             <div key={idx} className="flex justify-center gap-2 mb-2 last:mb-0 flex-nowrap">
               {row.map(k => {
                 const isEnter = k === 'ENTER', isDel = k === 'DEL';
-                const base = 'h-12 rounded-xl text-lg font-semibold flex items-center justify-center';
+                const base = 'h-14 rounded-md text-lg font-semibold flex items-center justify-center';
+
                 if (isEnter) {
-                  return <button key={k} onClick={() => onVKPress(k)} className={`${base} w-16 bg-[#3BB2F6] text-white`}>↵</button>;
+                  return <button
+                          key={k}
+                          onPointerDown={() => onVKPress(k)}
+                          className={`${base} w-20 bg-[#3BB2F6] text-white`}
+                        >
+                        ↵</button>;
                 }
                 if (isDel) {
-                  return <button key={k} onClick={() => onVKPress(k)} className={`${base} w-16 bg-[#F1F5F9] text-[#334155]`}>⌫</button>;
+                  return <button
+                          key={k}
+                          onPointerDown={() => onVKPress(k)}
+                          className={`${base} w-20 bg-[#F1F5F9] text-[#334155]`}
+                        >
+                        ⌫</button>;
                 }
-                return <button key={k} onClick={() => onVKPress(k)} className={`${base} w-10 bg-[#F1F5F9] text-[#334155]`}>{k}</button>;
+                return <button
+                      key={k}
+                      onPointerDown={() => onVKPress(k)}
+                      className={`${base} w-14 bg-[#F1F5F9] text-[#334155]`}
+                    >
+                      {k}
+                    </button>
+                    ;
               })}
             </div>
           ))}
