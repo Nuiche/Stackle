@@ -122,7 +122,8 @@ export default function Page() {
 
   useEffect(() => {
     if (timeLeft === 0) {
-      const go = () => router.push('/leaderboard');
+      const go = () => router.push(`/leaderboard?endSeed=${encodeURIComponent(latestSeed)}&score=${score}`);
+
       score > 0
         ? handleSaveScore().then(go).catch(go)
         : go();
