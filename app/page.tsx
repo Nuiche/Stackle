@@ -154,12 +154,12 @@ export default function Page() {
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
-    if (newWord.length < MIN_LEN) { alert(`Words must be at least ${MIN_LEN} letters.`); return; }
-    if (newWord.length > MAX_LEN) { alert(`Max word length is ${MAX_LEN}.`); return; }
+    if (newWord.length < MIN_LEN) { alert(`Words must be at least ${MIN_LEN} letters.`); setInput(''); return; }
+    if (newWord.length > MAX_LEN) { alert(`Max word length is ${MAX_LEN}.`); setInput(''); return; }
     const currentSeed = stack.length ? stack[stack.length - 1] : seedWord;
-    if (stack.includes(newWord) || newWord === currentSeed) { alert('Already used that word!'); return; }
-    if (!dict.has(newWord)) { alert('Not a valid English word.'); return; }
-    if (!isOneLetterDifferent(currentSeed, newWord)) { alert('Must differ by exactly one letter.'); return; }
+    if (stack.includes(newWord) || newWord === currentSeed) { alert('Already used that word!'); setInput(''); return; }
+    if (!dict.has(newWord)) { alert('Not a valid English word.'); setInput(''); return; }
+    if (!isOneLetterDifferent(currentSeed, newWord)) { alert('Must differ by exactly one letter.'); setInput(''); return; }
 
     setStack(p => [...p, newWord]);
     setScore(s => s + newWord.length);
