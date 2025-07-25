@@ -18,11 +18,12 @@ import { saveScore, SaveScoreResult, GameMode } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
 import HowToModal from '@/components/HowToModal';
 import { titleFont } from '@/lib/fonts';
+import { getDailyLeaderboard } from '@/lib/getLeaderboard';
 
 // ---------- constants ----------
 const MAX_LEN = 8;
 const MIN_LEN = 4;    // enforce at least 4 letters
-const POP_INTERVALS = [5, 12, 21, 32, 45];
+const POP_INTERVALS = [10, 25, 50, 75, 100, 125, 150, 175, 200]; // scores at which to burst confetti
 
 const KB_ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
@@ -362,6 +363,19 @@ function HomeScreen({
   onNicknameChange: () => void;
   onStart: () => void;
 }) {
+  const [currentLeader, setCurrentLeader] = useState<{ name: string; score: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const dk = buildDayKey();
+        const [top] = await getDailyLeaderboard(dk, 1);
+        if (top) setCurrentLeader({ name: top.name, score: top.score });
+      } catch (e) {
+        console.error('Error loading current leader', e);
+      }
+    })();
+  }, []);
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden overscroll-none">
       <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }} className="w-full max-w-md px-6 space-y-6">
@@ -377,8 +391,17 @@ function HomeScreen({
           Daily Challenge
         </motion.button>
 
-        <motion.div variants={childFall} className="text-sm text-[#334155] underline cursor-pointer" onClick={onNicknameChange}>
-          Change nickname {nickname ? `(@${nickname})` : ''}
+        <motion.div
+          variants={childFall}
+          className="flex justify-center items-center space-x-4 text-sm text-[#334155] mt-4 w-full"
+        >
+          <div className="underline cursor-pointer" onClick={onNicknameChange}>
+            Change nickname {nickname ? `(@${nickname})` : ''}
+          </div>
+          <span>|</span>
+          <div>
+            Leader: {currentLeader ? `${currentLeader.name} - ${currentLeader.score}` : 'Loading...'}
+          </div>
         </motion.div>
       </motion.div>
 

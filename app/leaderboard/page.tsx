@@ -3,21 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LeaderboardClient from './LeaderboardClient';
+import { useSearchParams } from 'next/navigation';
 
 export default function Page() {
   const router = useRouter();
-
-  // read last game result from localStorage
-  const [lastResult, setLastResult] = useState<{ endSeed: string; score: number } | null>(null);
-
-  useEffect(() => {
-    const endSeed = localStorage.getItem('lexit_lastEndSeed');
-    const scoreStr = localStorage.getItem('lexit_lastScore');
-    if (endSeed && scoreStr) {
-      const score = parseInt(scoreStr, 10);
-      if (!isNaN(score)) setLastResult({ endSeed, score });
-    }
-  }, []);
+  const searchParams = useSearchParams();
+  const endSeed = searchParams.get('endSeed');
+  const scoreParam = searchParams.get('score');
+  const lastResult = endSeed && scoreParam ? { endSeed, score: parseInt(scoreParam, 10) } : null;
 
   const handleShareRank = () => {
     if (!lastResult) {
@@ -33,7 +26,6 @@ export default function Page() {
 
   return (
     <div className="relative min-h-screen flex flex-col">
-      {/* Back & Share buttons */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between px-4">
         <button
           onClick={() => router.push('/')}
@@ -49,10 +41,8 @@ export default function Page() {
         </button>
       </div>
 
-      {/* Title pushed down */}
       <h1 className="mt-16 text-3xl font-bold text-center mb-6">Global Rankings</h1>
 
-      {/* Leaderboard content */}
       <LeaderboardClient />
     </div>
   );

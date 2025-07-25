@@ -1,4 +1,3 @@
-// lib/getLeaderboard.ts
 import {
   collection,
   query,
@@ -6,6 +5,8 @@ import {
   orderBy,
   limit,
   getDocs,
+  Timestamp,
+  QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -17,11 +18,36 @@ export type Row = {
   startSeed?: string;
   endSeed?: string;
   dayKey?: string;
-  createdAt?: any;
+  /** Unix timestamp in milliseconds */
+  createdAt: number;
 };
 
+/**
+ * Helper to map a Firestore document to our Row type,
+ * extracting and converting the `createdAt` Timestamp.
+ */
+function mapDocToRow(doc: QueryDocumentSnapshot): Row {
+  const data = doc.data() as any;
+  const rawTs = data.createdAt as Timestamp | undefined;
+  const createdAt = rawTs instanceof Timestamp ? rawTs.toMillis() : 0;
+
+  return {
+    id: doc.id,
+    name: data.name,
+    score: data.score,
+    mode: data.mode,
+    startSeed: data.startSeed,
+    endSeed: data.endSeed,
+    dayKey: data.dayKey,
+    createdAt,
+  };
+}
+
 // Daily (top 15)
-export async function getDailyLeaderboard(dayKey: string, top = 15): Promise<Row[]> {
+export async function getDailyLeaderboard(
+  dayKey: string,
+  top = 15
+): Promise<Row[]> {
   const q = query(
     collection(db, 'scores'),
     where('mode', '==', 'daily'),
@@ -31,10 +57,10 @@ export async function getDailyLeaderboard(dayKey: string, top = 15): Promise<Row
     limit(top)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+  return snap.docs.map(mapDocToRow);
 }
 
-// ALL‑TIME (still here)
+// All-time (top 50)
 export async function getAllTime(top = 50): Promise<Row[]> {
   const q = query(
     collection(db, 'scores'),
@@ -43,10 +69,10 @@ export async function getAllTime(top = 50): Promise<Row[]> {
     limit(top)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+  return snap.docs.map(mapDocToRow);
 }
 
-// NEW: Most recent 10 games (any mode)
+// Most recent (any mode)
 export async function getMostRecent(top = 10): Promise<Row[]> {
   const q = query(
     collection(db, 'scores'),
@@ -54,5 +80,5 @@ export async function getMostRecent(top = 10): Promise<Row[]> {
     limit(top)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+  return snap.docs.map(mapDocToRow);
 }
