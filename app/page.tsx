@@ -400,7 +400,7 @@ function HomeScreen({
             Change nickname {nickname?`(@${nickname})`:''}
           </div>
           <span>|</span>
-          <div>Leader: {currentLeader?`${currentLeader.name} - ${currentLeader.score}`:'Loading...'}</div>
+          <div>Leader: {currentLeader?`${currentLeader.name} (${currentLeader.score})`:'Loading...'}</div>
         </motion.div>
       </motion.div>
       <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60">Created By: Nuiche</div>
