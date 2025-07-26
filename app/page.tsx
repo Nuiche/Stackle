@@ -280,7 +280,7 @@ export default function Page() {
   });
   setInput('');  // clear after
   // keep focus so keyboard stays up
-  inputRef.current?.focus({ preventScroll: true });
+  //inputRef.current?.focus({ preventScroll: true });
 };
 
   return (
