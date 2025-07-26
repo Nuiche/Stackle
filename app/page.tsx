@@ -291,7 +291,7 @@ export default function Page() {
             onKeyDown={onKeyDown}
             placeholder="ENTER WORD"
             className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
-            inputMode="none"
+            //inputMode="none"
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
@@ -322,7 +322,7 @@ export default function Page() {
       </div>
 
       {/* Virtual keyboard */}
-      <div className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none"
+     {/*} <div className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none"
            style={{ touchAction:'manipulation', WebkitTapHighlightColor:'transparent' }}>
         <div className="max-w-md w-full backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto mx-auto">
           {KB_ROWS.map((row, idx) => (
@@ -337,7 +337,7 @@ export default function Page() {
             </div>
           ))}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
