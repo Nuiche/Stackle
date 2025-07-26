@@ -191,18 +191,18 @@ export default function Page() {
     if (!newWord) return;
 
     // 1) Too short
-    if (newWord.length < MIN_LEN) { shakeInput();; return; }
+    if (newWord.length < MIN_LEN) { shakeInput(); return; }
 
     // 2) Already used or seed
     const previous = [seedWord, ...stack];
-    if (previous.includes(newWord)) { shakeInput();(); return; }
+    if (previous.includes(newWord)) { shakeInput(); return; }
 
     // 3) Invalid English
-    if (!dict.has(newWord)) { shakeInput();(); return; }
+    if (!dict.has(newWord)) { shakeInput(); return; }
 
     // 4) Must differ by one letter
     const currentSeed = stack.length ? stack[stack.length-1] : seedWord;
-    if (!isOneLetterDifferent(currentSeed,newWord)) { shakeInput();(); return; }
+    if (!isOneLetterDifferent(currentSeed,newWord)) { shakeInput(); return; }
 
     // Valid
     setStack(p=>[...p,newWord]);
