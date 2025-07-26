@@ -273,14 +273,23 @@ export default function Page() {
     };
 
   const shakeInput = async () => {
-  // trigger a quick X wiggle
+  const el = inputRef.current;
+  // temporarily hide the caret
+  if (el) el.style.caretColor = 'transparent';
+
+  // run the shake animation
   await inputControls.start({
     x: [0, -5, 5, -5, 0],
-    transition: { duration: 0.3 }
+    transition: { duration: 0.3 },
   });
+
+  // clear the input and restore caret on next tick
   setTimeout(() => {
     setInput('');
+    if (el) el.style.caretColor = '';
   }, 0);
+};
+
   // keep focus so keyboard stays up
   //inputRef.current?.focus({ preventScroll: true });
 };
