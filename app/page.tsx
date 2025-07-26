@@ -260,9 +260,20 @@ export default function Page() {
     return `${sec}`;
   }
 
+  
+  // inside your Page component, before the return JSX
+const handleHelpClose = () => {
+  setShowHelp(false);
+  // slight delay to ensure modal has unmounted
+  setTimeout(() => {
+    inputRef.current?.focus();
+  }, 50);
+};
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
-      <HowToModal open={showHelp} onClose={()=>setShowHelp(false)} />
+
+      
+      <HowToModal open={showHelp} onClose={handleHelpClose} />
 
       {/* Top bar */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between max-w-md mx-auto px-4">
