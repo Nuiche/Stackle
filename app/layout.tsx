@@ -14,9 +14,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   
 
-  return (
+   return (
     <html lang="en" className={titleFont.className}>
-      <body className="min-h-screen bg-gradient-to-b from-white to-slate-200 text-[#334155]">
+      <head>
+        <link rel="icon" href="/favicon_rounded.png" />
+      </head>
+      <body className="min-h-screen ...">
         {/* GA4 */}
         {GA_ID && (
           <>
