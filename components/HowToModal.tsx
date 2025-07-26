@@ -3,7 +3,15 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-export default function HowToModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function HowToModal({
+  open,
+  onClose,
+  focusInput,
+}: {
+  open: boolean
+  onClose: () => void
+  focusInput?: () => void
+}) {
   if (!open) return null
 
   return (
@@ -33,7 +41,10 @@ export default function HowToModal({ open, onClose }: { open: boolean; onClose: 
             <li>You have 1 minute, 30 seconds to chain as many words as possible!</li>
           </ol>
           <button
-            onClick={onClose}
+            onClick={() => {
+              focusInput?.()
+              onClose()
+            }}
             className="mt-5 w-full py-2 bg-[#3BB2F6] text-white rounded-lg"
           >
             Got it

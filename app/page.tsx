@@ -270,7 +270,12 @@ export default function Page() {
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
 
       
-      <HowToModal open={showHelp} onClose={handleHelpClose} />
+      <HowToModal
+        open={showHelp}
+        // pass your own focus callback into the modal
+        onClose={() => setShowHelp(false)}
+        focusInput={() => inputRef.current?.focus()}
+      />
 
       {/* Top bar */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between max-w-md mx-auto px-4">
