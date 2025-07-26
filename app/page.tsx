@@ -268,6 +268,7 @@ export default function Page() {
     };
 
     const shakeInput = () => {
+    console.log('🔔 shakeInput called');
     const el = inputRef.current;
     if (!el) return;
     el.classList.add('shake');
