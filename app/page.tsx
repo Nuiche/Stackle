@@ -82,6 +82,7 @@ export default function Page() {
   // UI state
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
+  const inputControls = useAnimation();
 
   // Timer
   const TIME_LIMIT = 90;
@@ -254,7 +255,7 @@ export default function Page() {
 
   const latestSeed = stack.length ? stack[stack.length-1] : seedWord;
   const pastWords = stack.length ? [seedWord,...stack.slice(0,-1)] : [];
-  const inputControls = useAnimation();
+  
 
   function formatTime(sec: number) {
     if (sec>=60) {
