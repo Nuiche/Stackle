@@ -10,7 +10,7 @@ import React, {
   ChangeEvent,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence, Variants, useAnimation } from 'framer-motion';
 import { FaShareAlt, FaList } from 'react-icons/fa';
 
 import { burst } from '@/lib/confetti';
@@ -20,6 +20,8 @@ import { dayKey as buildDayKey } from '@/lib/dayKey';
 import HowToModal from '@/components/HowToModal';
 import { titleFont } from '@/lib/fonts';
 import { getDailyLeaderboard } from '@/lib/getLeaderboard';
+
+
 
 // ---------- constants ----------
 const MAX_LEN = 8;
@@ -94,6 +96,7 @@ export default function Page() {
   const [input, setInput] = useState('');
   const [dict, setDict] = useState<Set<string>>(new Set());
   const [submitState, setSubmitState] = useState<'idle'|'saving'|'saved'>('idle');
+  
 
   // Ref for input focus
   const inputRef = useRef<HTMLInputElement>(null);
@@ -251,6 +254,7 @@ export default function Page() {
 
   const latestSeed = stack.length ? stack[stack.length-1] : seedWord;
   const pastWords = stack.length ? [seedWord,...stack.slice(0,-1)] : [];
+  const inputControls = useAnimation();
 
   function formatTime(sec: number) {
     if (sec>=60) {
@@ -267,16 +271,17 @@ export default function Page() {
       inputRef.current?.focus();
     };
 
-    const shakeInput = () => {
-    console.log('🔔 shakeInput called');
-    const el = inputRef.current;
-    if (!el) return;
-    el.classList.add('shake');
-    setTimeout(() => {
-      el.classList.remove('shake');
-      setInput('');    // clear the box after the shake
-    }, 300);
-  };
+  const shakeInput = async () => {
+  // trigger a quick X wiggle
+  await inputControls.start({
+    x: [0, -5, 5, -5, 0],
+    transition: { duration: 0.3 }
+  });
+  setInput('');  // clear after
+  // keep focus so keyboard stays up
+  inputRef.current?.focus();
+};
+
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
 
@@ -308,13 +313,14 @@ export default function Page() {
       <div className="w-full max-w-md px-4 mt-20 relative">
         <div className="flex gap-2 items-center mb-2 relative">
           <span className="absolute right-20 top-1/2 -translate-y-1/2 text-[#334155]">{score}</span>
-          <input
+          <motion.input
             ref={inputRef}
             value={input}
             onChange={handleInputChange}
             onKeyDown={onKeyDown}
             placeholder="ENTER WORD"
             className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
+            animate={inputControls}
             //inputMode="none"
             autoComplete="off"
             autoCorrect="off"
