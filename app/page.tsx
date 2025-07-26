@@ -209,7 +209,7 @@ export default function Page() {
     setScore(s=>s+newWord.length);
     clearInput();
     if (POP_INTERVALS.includes(score+1)) burst();
-    inputRef.current?.blur();
+    //inputRef.current?.blur();
   },[input,seedWord,stack,score,dict]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
