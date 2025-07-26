@@ -267,8 +267,8 @@ const handleHelpClose = () => {
   // slight delay to ensure modal has unmounted
   setTimeout(() => {
     inputRef.current?.focus();
-  }, 50);
-};
+  }, 75);
+ };
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
 
