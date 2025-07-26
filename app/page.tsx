@@ -272,27 +272,24 @@ export default function Page() {
       inputRef.current?.focus();
     };
 
-  const shakeInput = async () => {
-  const el = inputRef.current;
-  // temporarily hide the caret
-  if (el) el.style.caretColor = 'transparent';
+    const shakeInput = async () => {
+      const el = inputRef.current;
+      // temporarily hide the caret
+      if (el) el.style.caretColor = 'transparent';
 
-  // run the shake animation
-  await inputControls.start({
-    x: [0, -5, 5, -5, 0],
-    transition: { duration: 0.3 },
-  });
+      // run the shake animation
+      await inputControls.start({
+        x: [0, -5, 5, -5, 0],
+        transition: { duration: 0.3 },
+      });
 
-  // clear the input and restore caret on next tick
-  setTimeout(() => {
-    setInput('');
-    if (el) el.style.caretColor = '';
-  }, 0);
+      // clear the input and restore caret on next tick
+      setTimeout(() => {
+        setInput('');
+        if (el) el.style.caretColor = '';
+      }, 0);
 };
 
-  // keep focus so keyboard stays up
-  //inputRef.current?.focus({ preventScroll: true });
-};
 
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
