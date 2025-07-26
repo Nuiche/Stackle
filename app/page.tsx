@@ -191,18 +191,18 @@ export default function Page() {
     if (!newWord) return;
 
     // 1) Too short
-    if (newWord.length < MIN_LEN) { clearInput(); return; }
+    if (newWord.length < MIN_LEN) { shakeInput();; return; }
 
     // 2) Already used or seed
     const previous = [seedWord, ...stack];
-    if (previous.includes(newWord)) { clearInput(); return; }
+    if (previous.includes(newWord)) { shakeInput();(); return; }
 
     // 3) Invalid English
-    if (!dict.has(newWord)) { clearInput(); return; }
+    if (!dict.has(newWord)) { shakeInput();(); return; }
 
     // 4) Must differ by one letter
     const currentSeed = stack.length ? stack[stack.length-1] : seedWord;
-    if (!isOneLetterDifferent(currentSeed,newWord)) { clearInput(); return; }
+    if (!isOneLetterDifferent(currentSeed,newWord)) { shakeInput();(); return; }
 
     // Valid
     setStack(p=>[...p,newWord]);
@@ -261,11 +261,21 @@ export default function Page() {
   }
 
   
-    const handleHelpClose = () => {
+  const handleHelpClose = () => {
       setShowHelp(false);
       // focus immediately—in the same user click—so the native keyboard will open
       inputRef.current?.focus();
     };
+
+    const shakeInput = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.classList.add('shake');
+    setTimeout(() => {
+      el.classList.remove('shake');
+      setInput('');    // clear the box after the shake
+    }, 300);
+  };
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
 
