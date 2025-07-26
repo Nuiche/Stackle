@@ -278,7 +278,9 @@ export default function Page() {
     x: [0, -5, 5, -5, 0],
     transition: { duration: 0.3 }
   });
-  setInput('');  // clear after
+  setTimeout(() => {
+    setInput('');
+  }, 0);
   // keep focus so keyboard stays up
   //inputRef.current?.focus({ preventScroll: true });
 };
