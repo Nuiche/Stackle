@@ -430,7 +430,7 @@ function HomeScreen({
         <motion.button variants={childFall} onClick={onStart} className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow">Daily Challenge</motion.button>
         <motion.div variants={childFall} className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1">
           <div className="underline cursor-pointer" onClick={onNicknameChange}>
-            Change nickname {nickname?`(@${nickname})`:''}
+            Change Nickname {nickname?`(@${nickname})`:''}
           </div>
           <span>|</span>
           <div>Leader: {currentLeader?`${currentLeader.name} (${currentLeader.score})`:'Loading...'}</div>
