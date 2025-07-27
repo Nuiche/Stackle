@@ -12,7 +12,7 @@ function getESTDayKey(date = new Date()) {
   }).format(date)
 }
 
-const filePath = path.join(process.cwd(), 'public', 'good-seeds-5.json')
+const filePath = path.join(process.cwd(), 'public', 'good-seeds.json')
 const json = fs.readFileSync(filePath, 'utf8')
 const WORDS = JSON.parse(json).map(w => w.toUpperCase()).sort()
 
