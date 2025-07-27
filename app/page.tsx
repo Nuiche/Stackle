@@ -441,5 +441,5 @@ function HomeScreen({
     <a href="/privacy" className="underline">Privacy Policy</a>
     </div>
     </div>
-  );
+  )
 }
