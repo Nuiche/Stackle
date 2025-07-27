@@ -1,35 +1,41 @@
 // scripts/build-dictionary.js
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
-const natural = require('natural');
+const pluralize = require('pluralize');
+const pkg = require('word-list');
 
-// locate the WordNet database shipped by wordnet-db
-const wnDict = path.join(
-  process.cwd(),
-  'node_modules',
-  'wordnet-db',
-  'dict'
-);
-const WordNet = natural.WordNet;
-const wordnet = new WordNet(wnDict);
+// Resolve the path to the raw word list
+const wordListPath =
+  typeof pkg === 'string'
+    ? pkg
+    : (pkg && typeof pkg.default === 'string')
+    ? pkg.default
+    : (() => { throw new Error('Could not resolve word-list path'); })();
 
-// read your raw word sources (e.g. ENABLE, Scrabble dumps, etc.)
-// for demo let’s just start from WordNet’s own index
-const indexFile = path.join(wnDict, 'index.noun');
-const raw = fs.readFileSync(indexFile, 'utf8');
+console.log('Reading raw dictionary from', wordListPath);
 
-// parse out headwords (WordNet’s “word” column)
-const allWords = raw
+// Read and normalize the raw list
+const raw = fs.readFileSync(wordListPath, 'utf8');
+const all = raw
   .split(/\r?\n/)
-  .filter(Boolean)
-  .map(line => line.split(' ')[0])
-  .map(w => w.toUpperCase());
+  .map((w) => w.trim())
+  .filter((w) => /^[A-Za-z]+$/.test(w))
+  .map((w) => w.toUpperCase());
 
-// dedupe & sort
-const unique = Array.from(new Set(allWords)).sort();
+// Deduplicate and sort
+const deduped = Array.from(new Set(all)).sort();
 
-// write out
+// Inject simple plurals
+const withPlurals = deduped.flatMap((w) => {
+  const p = pluralize(w.toLowerCase()).toUpperCase();
+  return p === w ? [w] : [w, p];
+});
+
+// Final dedupe and sort
+const finalList = Array.from(new Set(withPlurals)).sort();
+
+// Write out to your public folder
 const outPath = path.join(process.cwd(), 'public', 'words_all.json');
-fs.writeFileSync(outPath, JSON.stringify(unique, null, 2), 'utf8');
+fs.writeFileSync(outPath, JSON.stringify(finalList, null, 2), 'utf8');
 
-console.log(`✅ Wrote ${unique.length} WordNet words to ${outPath}`);
+console.log(`✅ Wrote ${finalList.length} words (including plurals) to ${outPath}`);
