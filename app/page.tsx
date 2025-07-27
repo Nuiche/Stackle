@@ -436,7 +436,10 @@ function HomeScreen({
           <div>Leader: {currentLeader?`${currentLeader.name} (${currentLeader.score})`:'Loading...'}</div>
         </motion.div>
       </motion.div>
-      <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60">Created By: Nuiche</div>
+     <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60 space-x-2">
+    <span>Created By: Nuiche</span>
+    <a href="/privacy" className="underline">Privacy Policy</a>
+    </div>
     </div>
   );
 }
