@@ -40,21 +40,34 @@ const wnWords = [
   ...loadIndex('adv'),
 ];
 
-// 3) Load additional word sets (ENABLE, SOWPODS, SCOWL if downloaded, plus custom overrides)
+// 3) Load additional word sets (ENABLE, SOWPODS, SCOWL if present, custom overrides)
 const dataDir = path.join(process.cwd(), 'data');
 const enable  = loadTxt(path.join(dataDir, 'enable.txt'));
 const sowpods = loadTxt(path.join(dataDir, 'sowpods.txt'));
-let scowl     = [];
+
+let scowl = [];
 try {
   scowl = loadTxt(path.join(dataDir, 'scowl-72.txt'));
+  console.log(`Loaded SCOWL (${scowl.length} words)`);
 } catch {
   console.warn('SCOWL not found, skipping');
 }
+
 let custom = [];
 try {
   custom = loadTxt(path.join(dataDir, 'custom.txt'));
+  console.log(`Loaded custom overrides (${custom.length} words)`);
 } catch {
   console.warn('Custom overrides not found, skipping');
+}
+
+// 3a) Load DWYL words_alpha (370k+ entries)
+let wordsAlpha = [];
+try {
+  wordsAlpha = loadTxt(path.join(dataDir, 'words_alpha.txt'));
+  console.log(`Loaded words_alpha.txt (${wordsAlpha.length} entries)`);
+} catch {
+  console.warn('words_alpha.txt missing; run curl to fetch it');
 }
 
 // 4) Merge all sources
@@ -65,6 +78,7 @@ let merged = [
   ...sowpods,
   ...scowl,
   ...custom,
+  ...wordsAlpha,
 ];
 
 // 5) Dedupe & sort
@@ -83,7 +97,7 @@ merged = Array.from(new Set(merged)).sort();
 const filtered = merged
   .filter(w => w.length >= 4 && w.length <= 8)
   .filter(w => !/\d/.test(w));
-console.log(`Filtered to ${filtered.length} words (4–8 letters, no digits) out of ${merged.length}`);
+console.log(`Filtered to ${filtered.length} words (4–8 letters, no digits) out of ${merged.length} total merged entries.`);
 
 // 9) Write out to public/words_all.json
 const outPath = path.join(process.cwd(), 'public', 'words_all.json');
