@@ -213,6 +213,21 @@ export default function Page() {
     setScore(s=>s+newWord.length);
     clearInput();
     if (POP_INTERVALS.includes(score+1)) burst();
+
+    // Async fetch of definitions—won't hold up the game loop
+    fetch(`/api/define?word=${newWord}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.definitions) {
+          // You can display these however you like:
+          // e.g. console.log or setState to show in a modal
+          console.log('Definitions for', newWord, data.definitions);
+        }
+      })
+      .catch(() => {
+        // If lookup fails, just ignore it
+        console.warn(`Definition lookup failed for ${newWord}`);
+      });
     //inputRef.current?.blur();
   },[input,seedWord,stack,score,dict]);
 
