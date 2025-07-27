@@ -1,31 +1,35 @@
 // scripts/build-dictionary.js
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
+const natural = require('natural');
 
-// Require the 'word-list' package and resolve its file path
-const pkg = require('word-list');
-const wordListPath =
-  typeof pkg === 'string'                ? pkg :
-  (pkg && typeof pkg.default === 'string') ? pkg.default :
-  (() => { throw new Error('Could not resolve word-list path'); })();
+// locate the WordNet database shipped by wordnet-db
+const wnDict = path.join(
+  process.cwd(),
+  'node_modules',
+  'wordnet-db',
+  'dict'
+);
+const WordNet = natural.WordNet;
+const wordnet = new WordNet(wnDict);
 
-console.log('Reading raw dictionary from', wordListPath);
+// read your raw word sources (e.g. ENABLE, Scrabble dumps, etc.)
+// for demo let’s just start from WordNet’s own index
+const indexFile = path.join(wnDict, 'index.noun');
+const raw = fs.readFileSync(indexFile, 'utf8');
 
-// Read the raw word list
-const raw = fs.readFileSync(wordListPath, 'utf8');
-
-// Split into lines, trim, filter to alphabetic words, uppercase
-const all = raw
+// parse out headwords (WordNet’s “word” column)
+const allWords = raw
   .split(/\r?\n/)
-  .map(w => w.trim())
-  .filter(w => /^[A-Za-z]+$/.test(w))
+  .filter(Boolean)
+  .map(line => line.split(' ')[0])
   .map(w => w.toUpperCase());
 
-// Dedupe and sort
-const deduped = Array.from(new Set(all)).sort();
+// dedupe & sort
+const unique = Array.from(new Set(allWords)).sort();
 
-// Write out to public/words_all.json
+// write out
 const outPath = path.join(process.cwd(), 'public', 'words_all.json');
-fs.writeFileSync(outPath, JSON.stringify(deduped, null, 2), 'utf8');
+fs.writeFileSync(outPath, JSON.stringify(unique, null, 2), 'utf8');
 
-console.log(`✅ Wrote ${deduped.length} words to ${outPath}`);
+console.log(`✅ Wrote ${unique.length} WordNet words to ${outPath}`);
