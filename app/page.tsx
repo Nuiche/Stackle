@@ -212,6 +212,8 @@ export default function Page() {
     setStack(p=>[...p,newWord]);
     setScore(s=>s+newWord.length);
     clearInput();
+
+    inputRef.current?.focus();
     if (POP_INTERVALS.includes(score+1)) burst();
 
     // Async fetch of definitions—won't hold up the game loop
