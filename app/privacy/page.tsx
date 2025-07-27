@@ -56,7 +56,7 @@ export default function PrivacyPolicyPage() {
 
       <h2>6. Your Rights</h2>
       <p>
-        You may request deletion of your nickname and scores by contacting us at <a href="mailto:steveniovine@yahoo.com">privacy@lexit.uno</a>.
+        You may request deletion of your nickname and scores by contacting us at <a href="mailto:steveniovine@yahoo.com">steveniovine@yahoo.com</a>.
       </p>
 
       <h2>7. Security</h2>
