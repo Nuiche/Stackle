@@ -6,7 +6,8 @@ import { NextResponse } from 'next/server';
 // Load your static dictionary once at startup
 const dictPath = path.join(process.cwd(), 'public', 'words_all.json');
 const ALL_WORDS = new Set(
-  JSON.parse(fs.readFileSync(dictPath, 'utf8')).map(w => w.toUpperCase())
+  JSON.parse(fs.readFileSync(dictPath, 'utf8'))
+    .map(w => w.toUpperCase())
 );
 
 export async function POST(req) {
@@ -29,12 +30,21 @@ export async function POST(req) {
     );
   }
 
-  // 3) Dictionary check: first the static Set
+  // 3) Dictionary check: first static Set
   if (!ALL_WORDS.has(up)) {
-    // Fallback to the free dictionary API
-    const dictRes = await fetch(
+    // Try the free dictionary API
+    let dictRes = await fetch(
       `https://api.dictionaryapi.dev/api/v2/entries/en/${up.toLowerCase()}`
     );
+
+    // If it’s a simple plural (ends in “S”), try singular form
+    if (!dictRes.ok && up.endsWith('S')) {
+      const singular = up.slice(0, -1).toLowerCase();
+      dictRes = await fetch(
+        `https://api.dictionaryapi.dev/api/v2/entries/en/${singular}`
+      );
+    }
+
     if (!dictRes.ok) {
       return NextResponse.json(
         { error: `"${guess}" is not a valid English word.` },
