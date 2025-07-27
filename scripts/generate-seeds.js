@@ -1,60 +1,66 @@
 // scripts/generate-seeds.js
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 
-// Load your full dictionary
-const allWords = JSON.parse(
-  fs.readFileSync(path.join(process.cwd(),'public','words_all.json'),'utf8')
-).map(w => w.toUpperCase());
+// Path to your static dictionary
+const dictPath = path.join(process.cwd(), 'public', 'words_all.json');
+const wordsAll = JSON.parse(fs.readFileSync(dictPath, 'utf8'))
+  .map(w => w.toUpperCase());
 
-// Helper: count substitution‐only neighbors
-function countNeighbors(word, pool) {
-  const L = word.length;
-  let cnt = 0;
-  // Precompute patterns once per word
-  for (let i = 0; i < L; i++) {
-    const pat = word.slice(0,i) + '_' + word.slice(i+1);
-    // Count all matches in pool (we’ll build a map for speed)
-    cnt += (pool[pat] || []).filter(w => w !== word).length;
-  }
-  return cnt;
-}
-
-// Build pattern map for all 4/5‑letter words
-const patternMap = {};
-allWords.forEach(w => {
-  if (w.length === 4 || w.length === 5) {
-    for (let i = 0; i < w.length; i++) {
-      const pat = w.slice(0,i) + '_' + w.slice(i+1);
-      (patternMap[pat] ||= []).push(w);
-    }
-  }
-});
-
-// Define your thresholds
-const thresholds = { 5: 20, 4: 30 };
-
-// Collect good seeds
-const goodSeeds = new Set();
-Object.entries(thresholds).forEach(([lenStr, thresh]) => {
-  const L = parseInt(lenStr,10);
-  // Filter candidates of length L
-  const cands = allWords.filter(w => w.length === L);
-  cands.forEach(w => {
-    // Count neighbors via the pattern map
-    let cnt = 0;
+// Build pattern maps for lengths 4 and 5
+function buildPatternMap(words, L) {
+  const map = {};
+  words.filter(w => w.length === L).forEach(w => {
     for (let i = 0; i < L; i++) {
-      const pat = w.slice(0,i) + '_' + w.slice(i+1);
-      cnt += (patternMap[pat] || []).length - 1; // minus itself
-    }
-    if (cnt >= thresh) {
-      goodSeeds.add(w);
+      const pat = w.slice(0, i) + '_' + w.slice(i + 1);
+      if (!map[pat]) map[pat] = [];
+      map[pat].push(w);
     }
   });
+  return map;
+}
+
+const words4 = wordsAll.filter(w => w.length === 4);
+const words5 = wordsAll.filter(w => w.length === 5);
+
+const patternMap4 = buildPatternMap(words4, 4);
+const patternMap5 = buildPatternMap(words5, 5);
+
+// Thresholds: 4-letter ≥30, 5-letter ≥20 neighbors
+const thresholds = { 4: 30, 5: 20 };
+
+// Count unique substitution neighbors
+function countNeighbors(word, patternMap) {
+  const L = word.length;
+  const set = new Set();
+  for (let i = 0; i < L; i++) {
+    const pat = word.slice(0, i) + '_' + word.slice(i + 1);
+    (patternMap[pat] || []).forEach(neigh => {
+      if (neigh !== word) set.add(neigh);
+    });
+  }
+  return set.size;
+}
+
+// Collect seeds meeting their criteria
+let goodSeeds = [];
+
+words4.forEach(w => {
+  if (countNeighbors(w, patternMap4) >= thresholds[4]) {
+    goodSeeds.push(w);
+  }
 });
 
+words5.forEach(w => {
+  if (countNeighbors(w, patternMap5) >= thresholds[5]) {
+    goodSeeds.push(w);
+  }
+});
+
+// Dedupe & sort
+goodSeeds = Array.from(new Set(goodSeeds)).sort();
+
 // Write out
-const out = Array.from(goodSeeds).sort();
-const outPath = path.join(process.cwd(),'public','good-seeds.json');
-fs.writeFileSync(outPath, JSON.stringify(out, null, 2),'utf8');
-console.log(`✅ Generated ${out.length} seeds (4‑ & 5‑letter) in ${outPath}`);
+const outPath = path.join(process.cwd(), 'public', 'good-seeds.json');
+fs.writeFileSync(outPath, JSON.stringify(goodSeeds, null, 2), 'utf8');
+console.log(`✅ Generated ${goodSeeds.length} seeds in ${outPath}`);
