@@ -1,44 +1,42 @@
 // scripts/build-dictionary.js
-const fs = require('fs');
-const path = require('path');
-const pluralize = require('pluralize');
-const pkg = require('word-list');
+const fs      = require('fs');
+const path    = require('path');
+const natural = require('natural');
 
-// Resolve raw list path
-const wordListPath =
-  typeof pkg === 'string'         ? pkg :
-  (pkg && typeof pkg.default==='string') ? pkg.default :
-  (() => { throw new Error('Could not resolve word-list path'); })();
+// Locate WordNet data
+const wnDict = path.join(
+  process.cwd(),
+  'node_modules',
+  'wordnet-db',
+  'dict'
+);
+const WordNet = natural.WordNet;
+const wn      = new WordNet(wnDict);
 
-console.log('Reading raw dictionary from', wordListPath);
+// Helper to load and parse an index file
+function loadIndex(pos) {
+  const idx = fs.readFileSync(
+    path.join(wnDict, `index.${pos}`),
+    'utf8'
+  );
+  return idx
+    .split('\n')
+    .filter(Boolean)
+    .map(line => line.split(' ')[0].toUpperCase());
+}
 
-// Read and normalize
-const raw = fs.readFileSync(wordListPath, 'utf8');
-const all = raw
-  .split(/\r?\n/)
-  .map(w => w.trim())
-  .filter(w => /^[A-Za-z]+$/.test(w))
-  .map(w => w.toUpperCase());
+// 1) Collect headwords from all parts of speech
+const nouns  = loadIndex('noun');
+const verbs  = loadIndex('verb');
+const adjs   = loadIndex('adj');
+const advs   = loadIndex('adv');
 
-// Dedupe & sort
-const deduped = Array.from(new Set(all)).sort();
+// 2) Merge, dedupe, filter length 4–8
+const merged = Array.from(
+  new Set([...nouns, ...verbs, ...adjs, ...advs])
+).filter(w => w.length >= 4 && w.length <= 8);
 
-// Inject simple plurals
-const withPlurals = deduped.flatMap(w => {
-  const p = pluralize(w.toLowerCase()).toUpperCase();
-  return p===w ? [w] : [w,p];
-});
-
-// Final dedupe & sort
-const allWords = Array.from(new Set(withPlurals)).sort();
-
-// FILTER to 4–8 letters only
-const filtered = allWords.filter(w => w.length >= 4 && w.length <= 8);
-
-console.log(`Keeping ${filtered.length} of ${allWords.length} total words (length 4–8).`);
-
-// Write out
+// 3) Write to JSON
 const outPath = path.join(process.cwd(), 'public', 'words_all.json');
-fs.writeFileSync(outPath, JSON.stringify(filtered, null, 2), 'utf8');
-
-console.log(`✅ Wrote filtered dictionary to ${outPath}`);
+fs.writeFileSync(outPath, JSON.stringify(merged.sort(), null, 2), 'utf8');
+console.log(`✅ Built dictionary with ${merged.length} words (4–8 letters)`);
