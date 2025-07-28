@@ -1,24 +1,20 @@
 // app/api/seed/route.js
-
-export const runtime = 'edge'
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 import { NextResponse } from 'next/server'
 import path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
- * Returns the EST‑based day key, rolling over at 2 AM EST.
+ * Returns the EST-based day key, rolling over at 2 AM EST.
  * If current EST time is before 2 AM, yields yesterday’s date.
  */
 function getESTDayKey(date = new Date()) {
-  // map to EST
   const estDate = new Date(
     date.toLocaleString('en-US', { timeZone: 'America/New_York' })
   )
-  // subtract 2h so the "day" flips at 2 AM EST
   estDate.setHours(estDate.getHours() - 2)
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/New_York',
@@ -28,7 +24,7 @@ function getESTDayKey(date = new Date()) {
   }).format(estDate)
 }
 
-// preload the filtered seed list (4‑ & 5‑letter words)
+// Preload your 4/5‑letter seed pool
 const filePath = path.join(process.cwd(), 'public', 'good-seeds.json')
 const WORDS    = JSON.parse(fs.readFileSync(filePath, 'utf8'))
                    .map(w => w.toUpperCase())
@@ -38,8 +34,7 @@ function hashToUint(str) {
   return crypto.createHash('sha1').update(str).digest().readUInt32BE(0)
 }
 
-export function GET(request) {
-  // allow ?now= override for testing rollover
+export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const nowParam = searchParams.get('now')
   const now      = nowParam ? new Date(nowParam) : new Date()

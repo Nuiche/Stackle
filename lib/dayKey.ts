@@ -1,15 +1,13 @@
 // lib/dayKey.ts
 
 /**
- * Returns the EST‑based day key (YYYY‑MM‑DD), rolling over at 2 AM EST.
+ * Returns the EST‑based day key (YYYY‑MM‑DD), rolling over at 2 AM EST.
  * If current EST time is before 2 AM, yields yesterday’s date.
  */
 function buildKey(date: Date = new Date()): string {
-  // Convert to EST
   const estDate = new Date(
     date.toLocaleString('en-US', { timeZone: 'America/New_York' })
   )
-  // Subtract 2h so the “day” flips at 2 AM EST
   estDate.setHours(estDate.getHours() - 2)
 
   const y = estDate.getFullYear()
@@ -18,7 +16,6 @@ function buildKey(date: Date = new Date()): string {
   return `${y}-${m}-${d}`
 }
 
-// Export under all existing names
 export const getESTDayKey = buildKey
 export const dayKey      = buildKey
 export const buildDayKey = buildKey
