@@ -5,14 +5,14 @@ import fs from 'fs'
 import crypto from 'crypto'
 
 /**
- * Returns the EST-based day key, rolling over at 2 AM EST.
+ * Returns the EST‑based day key, rolling over at 2 AM EST.
  * If current EST time is before 2 AM, yields yesterday’s date.
  */
 function getESTDayKey(date = new Date()) {
   const estDate = new Date(
     date.toLocaleString('en-US', { timeZone: 'America/New_York' })
   )
-  estDate.setHours(estDate.getHours() - 2)  // shift so “day” flips at 2 AM
+  estDate.setHours(estDate.getHours() - 2)
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/New_York',
     year: 'numeric',
@@ -21,25 +21,29 @@ function getESTDayKey(date = new Date()) {
   }).format(estDate)
 }
 
-// Load your filtered seed list (4- & 5-letter words)
+// Pre‑load your filtered seed list
 const filePath = path.join(process.cwd(), 'public', 'good-seeds.json')
-const json     = fs.readFileSync(filePath, 'utf8')
-const WORDS    = JSON.parse(json).map(w => w.toUpperCase()).sort()
+const WORDS    = JSON.parse(fs.readFileSync(filePath, 'utf8'))
+                   .map(w => w.toUpperCase())
+                   .sort()
 
 function hashToUint(str) {
   return crypto.createHash('sha1').update(str).digest().readUInt32BE(0)
 }
 
-export function GET(req) {
-  // allow ?now= override for testing
-  const { searchParams } = new URL(req.url)
+export function GET(request) {
+  // 1) grab optional now= override
+  const { searchParams } = new URL(request.url)
   const nowParam = searchParams.get('now')
-  const now = nowParam ? new Date(nowParam) : new Date()
+  const now      = nowParam ? new Date(nowParam) : new Date()
 
-  console.log(`[SEED] now=${now.toISOString()}`)
+  console.log(`[SEED] incoming time: ${now.toISOString()}`)
+
+  // 2) compute the dayKey with 2 AM EST rollover
   const dayKey = getESTDayKey(now)
-  console.log(`[SEED] dayKey=${dayKey}`)
+  console.log(`[SEED] computed dayKey: ${dayKey}`)
 
+  // 3) pick the seed
   const idx  = hashToUint(dayKey) % WORDS.length
   const seed = WORDS[idx]
 
