@@ -1,4 +1,9 @@
 // app/api/seed/route.js
+
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { NextResponse } from 'next/server'
 import path from 'path'
 import fs from 'fs'
@@ -9,9 +14,11 @@ import crypto from 'crypto'
  * If current EST time is before 2 AM, yields yesterday’s date.
  */
 function getESTDayKey(date = new Date()) {
+  // map to EST
   const estDate = new Date(
     date.toLocaleString('en-US', { timeZone: 'America/New_York' })
   )
+  // subtract 2h so the "day" flips at 2 AM EST
   estDate.setHours(estDate.getHours() - 2)
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/New_York',
@@ -21,7 +28,7 @@ function getESTDayKey(date = new Date()) {
   }).format(estDate)
 }
 
-// Pre‑load your filtered seed list
+// preload the filtered seed list (4‑ & 5‑letter words)
 const filePath = path.join(process.cwd(), 'public', 'good-seeds.json')
 const WORDS    = JSON.parse(fs.readFileSync(filePath, 'utf8'))
                    .map(w => w.toUpperCase())
@@ -32,18 +39,15 @@ function hashToUint(str) {
 }
 
 export function GET(request) {
-  // 1) grab optional now= override
+  // allow ?now= override for testing rollover
   const { searchParams } = new URL(request.url)
   const nowParam = searchParams.get('now')
   const now      = nowParam ? new Date(nowParam) : new Date()
 
-  console.log(`[SEED] incoming time: ${now.toISOString()}`)
-
-  // 2) compute the dayKey with 2 AM EST rollover
+  console.log(`[SEED] now=${now.toISOString()}`)
   const dayKey = getESTDayKey(now)
-  console.log(`[SEED] computed dayKey: ${dayKey}`)
+  console.log(`[SEED] dayKey=${dayKey}`)
 
-  // 3) pick the seed
   const idx  = hashToUint(dayKey) % WORDS.length
   const seed = WORDS[idx]
 
