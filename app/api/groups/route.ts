@@ -4,7 +4,6 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 
-// Initialize Firebase Admin
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -17,11 +16,10 @@ if (!admin.apps.length) {
 
 /**
  * POST /api/groups
- * Creates a new group or returns 409 with suggestions if name taken.
  */
 export async function POST(request: Request) {
-  const body = await request.json();
-  const name = (body.name as string)?.trim();
+  const { name: raw } = await request.json();
+  const name = raw?.trim();
   if (!name) {
     return NextResponse.json({ ok: false, error: 'invalid-name' }, { status: 400 });
   }
@@ -29,17 +27,12 @@ export async function POST(request: Request) {
   const docRef = admin.firestore().collection('groups').doc(name);
   const snapshot = await docRef.get();
   if (snapshot.exists) {
-    const suggestions = [`${name}1`, `${name}2`, `${name}3`];
     return NextResponse.json(
-      { ok: false, error: 'name-taken', suggestions },
+      { ok: false, error: 'name-taken', suggestions: [`${name}1`, `${name}2`, `${name}3`] },
       { status: 409 }
     );
   }
 
-  await docRef.set({
-    name,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
+  await docRef.set({ name, createdAt: admin.firestore.FieldValue.serverTimestamp() });
   return NextResponse.json({ ok: true, id: name });
 }
