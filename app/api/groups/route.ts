@@ -1,9 +1,9 @@
-// app/api/groups/route.ts
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 
+// Init Firebase Admin once
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -24,15 +24,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'invalid-name' }, { status: 400 });
   }
 
-  const docRef = admin.firestore().collection('groups').doc(name);
-  const snapshot = await docRef.get();
-  if (snapshot.exists) {
+  const doc = admin.firestore().collection('groups').doc(name);
+  const snap = await doc.get();
+  if (snap.exists) {
     return NextResponse.json(
-      { ok: false, error: 'name-taken', suggestions: [`${name}1`, `${name}2`, `${name}3`] },
+      { ok: false, error: 'name-taken', suggestions: [`${name}1`,`${name}2`,`${name}3`] },
       { status: 409 }
     );
   }
 
-  await docRef.set({ name, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+  await doc.set({ name, createdAt: admin.firestore.FieldValue.serverTimestamp() });
   return NextResponse.json({ ok: true, id: name });
 }
