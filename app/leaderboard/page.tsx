@@ -54,7 +54,7 @@ export default function Page() {
       {/* Title pushed down */}
       <h1 className="mt-16 text-3xl font-bold text-center mb-6">Global Rankings</h1>
 
-      {/* Leaderboard content */}
+      {/* Leaderboard contentt */}
       <LeaderboardClient />
     </div>
   );
