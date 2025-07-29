@@ -26,12 +26,6 @@ const MAX_LEN = 8;
 const MIN_LEN = 4;
 const POP_INTERVALS = [10, 25, 50, 75, 100, 125, 150, 175, 200];
 
-const KB_ROWS = [
-  ['Q','W','E','R','T','Y','U','I','O','P'],
-  ['A','S','D','F','G','H','J','K','L'],
-  ['ENTER','Z','X','C','V','B','N','M','DEL'],
-];
-
 const popVariants: Variants = {
   initial: { opacity: 0, scale: 0.8, y: -10 },
   animate: {
@@ -77,6 +71,10 @@ async function fetchDictionary(): Promise<Set<string>> {
 export default function Page() {
   const router = useRouter();
 
+  // Group context
+  const [groupId, setGroupId] = useState<string | undefined>(undefined);
+  const [groupName, setGroupName] = useState<string | undefined>(undefined);
+
   // UI state
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
@@ -95,14 +93,12 @@ export default function Page() {
   const [input, setInput] = useState('');
   const [dict, setDict] = useState<Set<string>>(new Set());
   const [submitState, setSubmitState] = useState<'idle'|'saving'|'saved'>('idle');
-  
+
   // Ref for input focus
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Handle simple clear on invalid input
+  // Helpers
   const clearInput = () => setInput('');
-
-  // Prevent overflow on manual typing
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.toUpperCase();
     setInput(raw.slice(0, MAX_LEN));
@@ -132,19 +128,27 @@ export default function Page() {
     };
   }, [showHome, showHelp]);
 
-  // Redirect when timer hits zero
+  // End-of-game redirect & save
   useEffect(() => {
     if (timeLeft > 0) return;
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
     const endSeed = stack.length ? stack[stack.length - 1] : seedWord;
-    const go = () =>
-      router.push(`/leaderboard?endSeed=${encodeURIComponent(endSeed)}&score=${score}`);
+    const go = () => {
+      const params = new URLSearchParams();
+      params.set('endSeed', endSeed);
+      params.set('score', String(score));
+      if (groupId) {
+        params.set('groupId', groupId);
+        if (groupName) params.set('groupName', groupName);
+      }
+      router.push(`/leaderboard?${params.toString()}`);
+    };
     if (score > 0) {
       handleSaveScore().finally(go);
     } else {
       go();
     }
-  }, [timeLeft, score]);
+  }, [timeLeft, score, groupId, groupName, stack, seedWord, router]);
 
   // Start game
   const startGame = async () => {
@@ -165,21 +169,22 @@ export default function Page() {
     setShowHome(false); setShowHelp(true);
   };
 
-  // Save score helper
+  // Save score helper (includes groupId)
   const handleSaveScore = async () => {
     if (submitState !== 'idle') return;
     setSubmitState('saving');
     try {
-      const payload = {
+      const payload: any = {
         name: nickname||'Anon',
-        mode: 'daily' as GameMode,
+        mode: groupId ? 'group' : 'daily',
         score,
         startSeed: seedWord,
         endSeed: stack.at(-1) ?? seedWord,
         dayKey: buildDayKey(),
       };
+      if (groupId) payload.groupId = groupId;
       const res: SaveScoreResult = await saveScore(payload);
-      if (res.ok) gaEvent('submit_score',{score,mode:'daily'});
+      if (res.ok) gaEvent('submit_score',{score,mode: payload.mode});
       setSubmitState('saved');
     } catch {
       setSubmitState('idle');
@@ -190,35 +195,20 @@ export default function Page() {
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
-
-    // 1) Too short
     if (newWord.length < MIN_LEN) { shakeInput(); return; }
-
-    // 2) Already used or seed
     const previous = [seedWord, ...stack];
     if (previous.includes(newWord)) { shakeInput(); return; }
-
-    // 3) Invalid English
     if (!dict.has(newWord)) { shakeInput(); return; }
-
-    // 4) Must differ by one letter
     const currentSeed = stack.length ? stack[stack.length-1] : seedWord;
     if (!isOneLetterDifferent(currentSeed,newWord)) { shakeInput(); return; }
-
-    // Valid
     setStack(p=>[...p,newWord]);
     setScore(s=>s+newWord.length);
     clearInput();
-
     inputRef.current?.focus();
     if (POP_INTERVALS.includes(score+1)) burst();
-
-    // Async fetch of definitions
     fetch(`/api/define?word=${newWord}`)
       .then(res => res.json())
-      .then(data => {
-        if (data.definitions) console.log('Definitions for', newWord, data.definitions);
-      })
+      .then(data => data.definitions && console.log('Definitions for', newWord, data.definitions))
       .catch(() => console.warn(`Definition lookup failed for ${newWord}`));
   },[input,seedWord,stack,score,dict]);
 
@@ -235,11 +225,8 @@ export default function Page() {
   const handleShare = () => {
     const text = `I scored ${score} in today's Daily Challenge on Lexit!`;
     const url  = window.location.origin;
-    if (navigator.share) {
-      navigator.share({text,url}).catch(()=>navigator.clipboard.writeText(`${text} ${url}`));
-    } else {
-      navigator.clipboard.writeText(`${text} ${url}`);
-    }
+    if (navigator.share) navigator.share({text,url}).catch(()=>navigator.clipboard.writeText(`${text} ${url}`));
+    else navigator.clipboard.writeText(`${text} ${url}`);
   };
   const changeNick = () => {
     const n = prompt('Enter a new nickname (max 20 chars):',nickname)||'';
@@ -253,7 +240,17 @@ export default function Page() {
   };
 
   if (showHome) {
-    return <HomeScreen nickname={nickname} onNicknameChange={changeNick} onStart={startGame} />;
+    return <HomeScreen
+      nickname={nickname}
+      onNicknameChange={changeNick}
+      onStart={(gid?:string, gname?:string) => {
+        if (gid) {
+          setGroupId(gid);
+          setGroupName(gname || gid);
+        }
+        startGame();
+      }}
+    />;
   }
 
   const latestSeed = stack.length ? stack[stack.length-1] : seedWord;
@@ -261,24 +258,17 @@ export default function Page() {
 
   function formatTime(sec: number) {
     if (sec>=60) {
-      const m=Math.floor(sec/60),s=sec%60;
-      return `${m}:${s.toString().padStart(2,'0')}`;
+      const m=Math.floor(sec/60),s=sec%60; return `${m}:${s.toString().padStart(2,'0')}`;
     }
     return `${sec}`;
   }
 
-  const handleHelpClose = () => {
-      setShowHelp(false);
-      inputRef.current?.focus();
-  };
+  const handleHelpClose = () => { setShowHelp(false); inputRef.current?.focus(); };
   const shakeInput = async () => {
     const el = inputRef.current;
     if (el) el.style.caretColor = 'transparent';
     await inputControls.start({ x: [0,-5,5,-5,0], transition: { duration: 0.3 } });
-    setTimeout(() => {
-      setInput('');
-      if (el) el.style.caretColor = '';
-    }, 0);
+    setTimeout(() => { setInput(''); if (el) el.style.caretColor = ''; }, 0);
   };
 
   return (
@@ -352,7 +342,7 @@ function HomeScreen({
 }: {
   nickname: string;
   onNicknameChange: () => void;
-  onStart: () => void;
+  onStart: (gid?: string, gname?: string) => void;
 }) {
   const [currentLeader, setCurrentLeader] = useState<{ name: string; score: number } | null>(null);
 
@@ -380,7 +370,7 @@ function HomeScreen({
       });
       const data = await res.json();
       if (res.ok && data.ok) {
-        onStart();
+        onStart(data.id, name);
       } else if (data.error === 'name-taken' && Array.isArray(data.suggestions)) {
         alert(`Name taken. Try one of: ${data.suggestions.join(', ')}`);
       } else {
@@ -409,7 +399,7 @@ function HomeScreen({
         {/* Solo button */}
         <motion.button
           variants={childFall}
-          onClick={onStart}
+          onClick={() => onStart()}
           className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow"
         >
           Daily Challenge
