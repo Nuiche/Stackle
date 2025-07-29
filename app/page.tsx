@@ -21,8 +21,6 @@ import HowToModal from '@/components/HowToModal';
 import { titleFont } from '@/lib/fonts';
 import { getDailyLeaderboard } from '@/lib/getLeaderboard';
 
-
-
 // ---------- constants ----------
 const MAX_LEN = 8;
 const MIN_LEN = 4;
@@ -72,7 +70,7 @@ const isOneLetterDifferent = (a: string, b: string) => {
 async function fetchDictionary(): Promise<Set<string>> {
   const res = await fetch('/api/dictionary');
   const data = (await res.json()) as string[];
-  return new Set(data);
+  return new Set(data.map(w => w.toUpperCase()));
 }
 
 // ---------- component ----------
@@ -98,7 +96,6 @@ export default function Page() {
   const [dict, setDict] = useState<Set<string>>(new Set());
   const [submitState, setSubmitState] = useState<'idle'|'saving'|'saved'>('idle');
   
-
   // Ref for input focus
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -181,7 +178,7 @@ export default function Page() {
         endSeed: stack.at(-1) ?? seedWord,
         dayKey: buildDayKey(),
       };
-      const res = await saveScore(payload);
+      const res: SaveScoreResult = await saveScore(payload);
       if (res.ok) gaEvent('submit_score',{score,mode:'daily'});
       setSubmitState('saved');
     } catch {
@@ -216,27 +213,18 @@ export default function Page() {
     inputRef.current?.focus();
     if (POP_INTERVALS.includes(score+1)) burst();
 
-    // Async fetch of definitions—won't hold up the game loop
+    // Async fetch of definitions
     fetch(`/api/define?word=${newWord}`)
       .then(res => res.json())
       .then(data => {
-        if (data.definitions) {
-          // You can display these however you like:
-          // e.g. console.log or setState to show in a modal
-          console.log('Definitions for', newWord, data.definitions);
-        }
+        if (data.definitions) console.log('Definitions for', newWord, data.definitions);
       })
-      .catch(() => {
-        // If lookup fails, just ignore it
-        console.warn(`Definition lookup failed for ${newWord}`);
-      });
-    //inputRef.current?.blur();
+      .catch(() => console.warn(`Definition lookup failed for ${newWord}`));
   },[input,seedWord,stack,score,dict]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key==='Enter') { e.preventDefault(); submitWord(); }
   };
-
   const onVKPress = (key: string) => {
     if (key==='ENTER') { submitWord(); return; }
     if (key==='DEL')   { setInput(v=>v.slice(0,-1)); return; }
@@ -253,14 +241,12 @@ export default function Page() {
       navigator.clipboard.writeText(`${text} ${url}`);
     }
   };
-
   const changeNick = () => {
     const n = prompt('Enter a new nickname (max 20 chars):',nickname)||'';
     const clean = n.slice(0,20);
     setNickname(clean);
     localStorage.setItem('lexit_nick',clean);
   };
-
   const backHome = () => {
     setShowHome(true);
     setStack([]); setScore(0); setInput(''); setSubmitState('idle');
@@ -272,7 +258,6 @@ export default function Page() {
 
   const latestSeed = stack.length ? stack[stack.length-1] : seedWord;
   const pastWords = stack.length ? [seedWord,...stack.slice(0,-1)] : [];
-  
 
   function formatTime(sec: number) {
     if (sec>=60) {
@@ -282,42 +267,23 @@ export default function Page() {
     return `${sec}`;
   }
 
-  
   const handleHelpClose = () => {
       setShowHelp(false);
-      // focus immediately—in the same user click—so the native keyboard will open
       inputRef.current?.focus();
-    };
-
-    const shakeInput = async () => {
-      const el = inputRef.current;
-      // temporarily hide the caret
-      if (el) el.style.caretColor = 'transparent';
-
-      // run the shake animation
-      await inputControls.start({
-        x: [0, -5, 5, -5, 0],
-        transition: { duration: 0.3 },
-      });
-
-      // clear the input and restore caret on next tick
-      setTimeout(() => {
-        setInput('');
-        if (el) el.style.caretColor = '';
-      }, 0);
-};
-
+  };
+  const shakeInput = async () => {
+    const el = inputRef.current;
+    if (el) el.style.caretColor = 'transparent';
+    await inputControls.start({ x: [0,-5,5,-5,0], transition: { duration: 0.3 } });
+    setTimeout(() => {
+      setInput('');
+      if (el) el.style.caretColor = '';
+    }, 0);
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
-
-      
-      <HowToModal
-        open={showHelp}
-        // pass your own focus callback into the modal
-        onClose={() => setShowHelp(false)}
-        focusInput={() => inputRef.current?.focus()}
-      />
+      <HowToModal open={showHelp} onClose={() => setShowHelp(false)} focusInput={() => inputRef.current?.focus()} />
 
       {/* Top bar */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between max-w-md mx-auto px-4">
@@ -347,7 +313,6 @@ export default function Page() {
             placeholder="ENTER WORD"
             className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
             animate={inputControls}
-            //inputMode="none"
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
@@ -356,7 +321,6 @@ export default function Page() {
             ↵
           </button>
         </div>
-
         {!showHelp && (
           <motion.div key={latestSeed} variants={popVariants} initial="initial" animate="animate" exit="exit"
             className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4">
@@ -376,29 +340,11 @@ export default function Page() {
           ))}
         </AnimatePresence>
       </div>
-
-      {/* Virtual keyboard */}
-     {/*} <div className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none"
-           style={{ touchAction:'manipulation', WebkitTapHighlightColor:'transparent' }}>
-        <div className="max-w-md w-full backdrop-blur-sm bg-[#334155]/20 rounded-3xl p-2 pointer-events-auto mx-auto">
-          {KB_ROWS.map((row, idx) => (
-            <div key={idx} className="flex justify-center gap-2 mb-2 last:mb-0 flex-nowrap">
-              {row.map(k => {
-                const isEnter = k==='ENTER', isDel = k==='DEL';
-                const base = 'h-14 rounded-md text-lg font-semibold flex items-center justify-center';
-                if (isEnter) return <button key={k} onPointerDown={()=>onVKPress(k)} className={`${base} w-20 bg-[#3BB2F6] text-white`}>↵</button>;
-                if (isDel)   return <button key={k} onPointerDown={()=>onVKPress(k)} className={`${base} w-20 bg-[#F1F5F9] text-[#334155]`}>⌫</button>;
-                return <button key={k} onPointerDown={()=>onVKPress(k)} className={`${base} w-14 bg-[#F1F5F9] text-[#334155]`}>{k}</button>;
-              })}
-            </div>
-          ))}
-        </div>
-      </div> */}
     </div>
   );
 }
 
-// ---------- Home screen (unchanged) ----------
+// ---------- Home screen (with Create‑Group) ----------
 function HomeScreen({
   nickname,
   onNicknameChange,
@@ -422,24 +368,74 @@ function HomeScreen({
     })();
   }, []);
 
+  // --- Create‑Group handler ---
+  const handleCreateGroup = async () => {
+    const name = prompt('Enter a new group name:')?.trim();
+    if (!name) return;
+    try {
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        onStart();
+      } else if (data.error === 'name-taken' && Array.isArray(data.suggestions)) {
+        alert(`Name taken. Try one of: ${data.suggestions.join(', ')}`);
+      } else {
+        alert('Error creating group');
+      }
+    } catch {
+      alert('Network error creating group');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden overscroll-none">
-      <motion.div initial="hidden" animate="show" variants={{ hidden:{}, show:{ transition:{staggerChildren:0.35} } }} className="w-full max-w-md px-6 space-y-6">
-        <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>Lexit</motion.h1>
-        <motion.p variants={childFall} className="text-[#334155] italic">A little goes a long way</motion.p>
-        <motion.button variants={childFall} onClick={onStart} className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow">Daily Challenge</motion.button>
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }}
+        className="w-full max-w-md px-6 space-y-6"
+      >
+        <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>
+          Lexit
+        </motion.h1>
+        <motion.p variants={childFall} className="text-[#334155] italic">
+          A little goes a long way
+        </motion.p>
+
+        {/* Solo button */}
+        <motion.button
+          variants={childFall}
+          onClick={onStart}
+          className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow"
+        >
+          Daily Challenge
+        </motion.button>
+
+        {/* Group button */}
+        <motion.button
+          variants={childFall}
+          onClick={handleCreateGroup}
+          className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow mt-4"
+        >
+          Daily Challenge (Group)
+        </motion.button>
+
         <motion.div variants={childFall} className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1">
           <div className="underline cursor-pointer" onClick={onNicknameChange}>
-            Change Nickname {nickname?`(@${nickname})`:''}
+            Change Nickname {nickname ? `(@${nickname})` : ''}
           </div>
           <span>|</span>
-          <div>Leader: {currentLeader?`${currentLeader.name} (${currentLeader.score})`:'Loading...'}</div>
+          <div>Leader: {currentLeader ? `${currentLeader.name} (${currentLeader.score})` : 'Loading...'}</div>
         </motion.div>
       </motion.div>
-     <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60 space-x-2">
-    <span>Created By: Nuiche</span>
-    <a href="/privacy" className="underline">Privacy Policy</a>
+      <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60 space-x-2">
+        <span>Created By: Nuiche</span>
+        <a href="/privacy" className="underline">Privacy Policy</a>
+      </div>
     </div>
-    </div>
-  )
+  );
 }
