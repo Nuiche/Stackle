@@ -1,9 +1,10 @@
+// app/api/groups/route.ts
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import admin from 'firebase-admin';
+import crypto from 'crypto';
 
-// Init Firebase Admin once
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -14,25 +15,19 @@ if (!admin.apps.length) {
   });
 }
 
-/**
- * POST /api/groups
- */
 export async function POST(request: Request) {
   const { name: raw } = await request.json();
-  const name = raw?.trim();
-  if (!name) {
+  const displayName = raw?.trim();
+  if (!displayName) {
     return NextResponse.json({ ok: false, error: 'invalid-name' }, { status: 400 });
   }
 
-  const doc = admin.firestore().collection('groups').doc(name);
-  const snap = await doc.get();
-  if (snap.exists) {
-    return NextResponse.json(
-      { ok: false, error: 'name-taken', suggestions: [`${name}1`,`${name}2`,`${name}3`] },
-      { status: 409 }
-    );
-  }
+  // generate short random suffix
+  const suffix = crypto.randomBytes(4).toString('hex'); // 8 hex chars
+  const id = `${displayName}-${suffix}`;
 
-  await doc.set({ name, createdAt: admin.firestore.FieldValue.serverTimestamp() });
-  return NextResponse.json({ ok: true, id: name });
+  const doc = admin.firestore().collection('groups').doc(id);
+  await doc.set({ displayName, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+
+  return NextResponse.json({ ok: true, id, displayName });
 }

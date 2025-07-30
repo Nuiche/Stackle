@@ -9,13 +9,13 @@ import React, {
   useCallback,
   ChangeEvent,
 } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence, Variants, useAnimation } from 'framer-motion';
 import { FaShareAlt, FaList } from 'react-icons/fa';
 
 import { burst } from '@/lib/confetti';
 import { gaEvent } from '@/lib/gtag';
-import { saveScore, SaveScoreResult, GameMode } from '@/lib/saveScore';
+import { saveScore, GameMode, SaveScoreResult } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
 import HowToModal from '@/components/HowToModal';
 import { titleFont } from '@/lib/fonts';
@@ -42,51 +42,27 @@ const childFall: Variants = {
   show:  { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 18 } },
 };
 
-// ---------- helpers ----------
-const isOneLetterDifferent = (a: string, b: string) => {
-  if (Math.abs(a.length - b.length) > 1) return false;
-  let i = 0, j = 0, edits = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      i++; j++;
-    } else {
-      edits++;
-      if (edits > 1) return false;
-      if (a.length > b.length) i++;
-      else if (b.length > a.length) j++;
-      else { i++; j++; }
-    }
-  }
-  edits += a.length - i + (b.length - j);
-  return edits <= 1;
-};
-
-async function fetchDictionary(): Promise<Set<string>> {
-  const res = await fetch('/api/dictionary');
-  const data = (await res.json()) as string[];
-  return new Set(data.map(w => w.toUpperCase()));
-}
-
 // ---------- component ----------
 export default function Page() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Group context
-  const [groupId, setGroupId] = useState<string | undefined>(undefined);
-  const [groupName, setGroupName] = useState<string | undefined>(undefined);
+  // Persisted state
+  const [nickname, setNickname] = useState<string>('');
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const [groupName, setGroupName] = useState<string | null>(null);
 
   // UI state
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const inputControls = useAnimation();
 
-  // Timer
+  // Timer state
   const TIME_LIMIT = 90;
   const [timeLeft, setTimeLeft] = useState<number>(TIME_LIMIT);
   const timerRef = useRef<number | null>(null);
 
   // Game state
-  const [nickname, setNickname] = useState('');
   const [seedWord, setSeedWord] = useState('TREAT');
   const [stack, setStack] = useState<string[]>([]);
   const [score, setScore] = useState(0);
@@ -94,74 +70,153 @@ export default function Page() {
   const [dict, setDict] = useState<Set<string>>(new Set());
   const [submitState, setSubmitState] = useState<'idle'|'saving'|'saved'>('idle');
 
-  // Ref for input focus
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Helpers
-  const clearInput = () => setInput('');
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.toUpperCase();
-    setInput(raw.slice(0, MAX_LEN));
-  };
-
-  // Load dictionary & nickname
+  // Hydrate from storage or URL
   useEffect(() => {
-    fetchDictionary().then(setDict);
-    const saved = localStorage.getItem('lexit_nick');
-    if (saved) setNickname(saved);
+    const savedNick = localStorage.getItem('lexit_nick');
+    if (savedNick) setNickname(savedNick);
+
+    const gid = searchParams.get('groupId');
+    const gname = searchParams.get('groupName');
+    if (gid && gname) {
+      setGroupId(gid);
+      setGroupName(decodeURIComponent(gname));
+      localStorage.setItem('groupId', gid);
+      localStorage.setItem('groupName', gname);
+      return;
+    }
+    const sgid = localStorage.getItem('groupId');
+    const sgname = localStorage.getItem('groupName');
+    if (sgid && sgname) {
+      setGroupId(sgid);
+      setGroupName(decodeURIComponent(sgname));
+    }
+  }, [searchParams]);
+
+  // Load dictionary
+  useEffect(() => {
+    fetch('/api/dictionary')
+      .then(res => res.json())
+      .then((words: string[]) => {
+        setDict(new Set(words.map(w => w.toUpperCase())));
+      });
   }, []);
 
-  // Auto-focus input when game starts
+  // Focus input on game start
   useEffect(() => {
-    if (!showHome) inputRef.current?.focus();
-  }, [showHome]);
+    if (!showHome && !showHelp) inputRef.current?.focus();
+  }, [showHome, showHelp]);
 
   // Timer setup/cleanup
   useEffect(() => {
     if (!showHome && !showHelp) {
-      if (timerRef.current !== null) window.clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
       setTimeLeft(TIME_LIMIT);
       timerRef.current = window.setInterval(() => setTimeLeft(t => t - 1), 1000);
     }
     return () => {
-      if (timerRef.current !== null) window.clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [showHome, showHelp]);
 
-  // End-of-game redirect & save
+  // End of game redirect
   useEffect(() => {
     if (timeLeft > 0) return;
-    if (timerRef.current !== null) window.clearInterval(timerRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
     const endSeed = stack.length ? stack[stack.length - 1] : seedWord;
+
     const go = () => {
-      const params = new URLSearchParams();
-      params.set('endSeed', endSeed);
-      params.set('score', String(score));
-      if (groupId) {
-        params.set('groupId', groupId);
-        if (groupName) params.set('groupName', groupName);
+      let url = `/leaderboard?endSeed=${encodeURIComponent(endSeed)}&score=${score}`;
+      if (groupId && groupName) {
+        url += `&groupId=${encodeURIComponent(groupId)}&groupName=${encodeURIComponent(groupName)}`;
       }
-      router.push(`/leaderboard?${params.toString()}`);
+      router.push(url);
     };
+
     if (score > 0) {
       handleSaveScore().finally(go);
     } else {
       go();
     }
-  }, [timeLeft, score, groupId, groupName, stack, seedWord, router]);
+  }, [timeLeft, score, groupId, groupName, router, stack, seedWord]);
 
-  // Start game
-  const startGame = async () => {
-    if (!nickname) {
-      let n = '';
-      while (!n) {
-        n = prompt('Please enter a nickname (max 20 chars):','')?.trim() || '';
-        if (!n) alert('A nickname is required.');
-      }
-      const clean = n.slice(0,20);
-      setNickname(clean);
-      localStorage.setItem('lexit_nick', clean);
+  // Prompt for unique nickname
+  const promptNickname = () => {
+    let n = '';
+    while (!n) {
+      n = prompt('Please enter a unique nickname (max 20 chars):','')?.trim() || '';
+      if (!n) alert('A nickname is required.');
     }
+    const clean = n.slice(0,20);
+    setNickname(clean);
+    localStorage.setItem('lexit_nick', clean);
+    return clean;
+  };
+
+  // Create a new group
+  const handleCreateGroup = async () => {
+    const raw = prompt('Enter a new group name:','')?.trim();
+    if (!raw) return;
+    const res = await fetch('/api/groups', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ name: raw }),
+    });
+    const data = await res.json() as { ok: boolean; id: string; displayName: string };
+    if (!data?.ok) {
+      alert('Error creating group');
+      return;
+    }
+    setGroupId(data.id);
+    setGroupName(data.displayName);
+    localStorage.setItem('groupId', data.id);
+    localStorage.setItem('groupName', encodeURIComponent(data.displayName));
+
+    const link = `${window.location.origin}?groupId=${encodeURIComponent(data.id)}&groupName=${encodeURIComponent(data.displayName)}`;
+    navigator.clipboard.writeText(link).catch(() => {});
+    alert(`Group created! Share this link:\n\n${link}`);
+
+    if (!nickname) promptNickname();
+    startGame('group');
+  };
+
+  // Join existing group
+  const handleJoinGroup = async () => {
+    const code = prompt('Paste your invite link or enter group code:','')?.trim();
+    if (!code) return;
+    let gid = code, gname = '';
+    try {
+      const url = new URL(code);
+      gid = url.searchParams.get('groupId') || code;
+      gname = url.searchParams.get('groupName') || '';
+    } catch {}
+    const res = await fetch(`/api/groups/${encodeURIComponent(gid)}`);
+    if (res.status === 404) {
+      alert('Group not found');
+      return;
+    }
+    const data = await res.json() as { ok: boolean; displayName: string };
+    if (!data?.ok) {
+      alert('Group not found');
+      return;
+    }
+    setGroupId(gid);
+    const display = data.displayName || gname;
+    setGroupName(display);
+    localStorage.setItem('groupId', gid);
+    localStorage.setItem('groupName', encodeURIComponent(display));
+
+    if (!nickname) promptNickname();
+    startGame('group');
+  };
+
+  // Solo start
+  const startSolo = () => startGame('daily');
+
+  // Common start
+  const startGame = async (mode: GameMode) => {
+    if (!nickname) promptNickname();
     const r = await fetch('/api/seed');
     const s = await r.json();
     setSeedWord(s.seed.toUpperCase());
@@ -169,7 +224,7 @@ export default function Page() {
     setShowHome(false); setShowHelp(true);
   };
 
-  // Save score helper (includes groupId)
+  // Save score
   const handleSaveScore = async () => {
     if (submitState !== 'idle') return;
     setSubmitState('saving');
@@ -183,38 +238,60 @@ export default function Page() {
         dayKey: buildDayKey(),
       };
       if (groupId) payload.groupId = groupId;
-      const res: SaveScoreResult = await saveScore(payload);
-      if (res.ok) gaEvent('submit_score',{score,mode: payload.mode});
+      const res = await saveScore(payload);
+      if (res.ok) gaEvent('submit_score', { score, mode: payload.mode });
       setSubmitState('saved');
     } catch {
       setSubmitState('idle');
     }
   };
 
-  // Submit word
+  // Word submission helpers
+  const clearInput = () => setInput('');
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.toUpperCase();
+    setInput(raw.slice(0, MAX_LEN));
+  };
+  const isOneLetterDifferent = (a: string, b: string) => {
+    if (Math.abs(a.length - b.length) > 1) return false;
+    let i = 0, j = 0, edits = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; }
+      else {
+        edits++;
+        if (edits > 1) return false;
+        if (a.length > b.length) i++;
+        else if (b.length > a.length) j++;
+        else { i++; j++; }
+      }
+    }
+    edits += a.length - i + (b.length - j);
+    return edits <= 1;
+  };
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
-    if (newWord.length < MIN_LEN) { shakeInput(); return; }
-    const previous = [seedWord, ...stack];
-    if (previous.includes(newWord)) { shakeInput(); return; }
-    if (!dict.has(newWord)) { shakeInput(); return; }
-    const currentSeed = stack.length ? stack[stack.length-1] : seedWord;
-    if (!isOneLetterDifferent(currentSeed,newWord)) { shakeInput(); return; }
-    setStack(p=>[...p,newWord]);
-    setScore(s=>s+newWord.length);
+    if (newWord.length < MIN_LEN)         { shakeInput(); return; }
+    if ([seedWord, ...stack].includes(newWord)) { shakeInput(); return; }
+    if (!dict.has(newWord))               { shakeInput(); return; }
+    const current = stack.length ? stack[stack.length-1] : seedWord;
+    if (!isOneLetterDifferent(current, newWord)) { shakeInput(); return; }
+
+    setStack(s => [...s, newWord]);
+    setScore(s => s + newWord.length);
     clearInput();
     inputRef.current?.focus();
     if (POP_INTERVALS.includes(score+1)) burst();
     fetch(`/api/define?word=${newWord}`)
-      .then(res => res.json())
-      .then(data => data.definitions && console.log('Definitions for', newWord, data.definitions))
-      .catch(() => console.warn(`Definition lookup failed for ${newWord}`));
-  },[input,seedWord,stack,score,dict]);
+      .then(r=>r.json()).then(data=>console.log('Defs', data.definitions))
+      .catch(()=>{});
+
+  }, [input, seedWord, stack, score, dict]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key==='Enter') { e.preventDefault(); submitWord(); }
   };
+
   const onVKPress = (key: string) => {
     if (key==='ENTER') { submitWord(); return; }
     if (key==='DEL')   { setInput(v=>v.slice(0,-1)); return; }
@@ -228,52 +305,42 @@ export default function Page() {
     if (navigator.share) navigator.share({text,url}).catch(()=>navigator.clipboard.writeText(`${text} ${url}`));
     else navigator.clipboard.writeText(`${text} ${url}`);
   };
-  const changeNick = () => {
-    const n = prompt('Enter a new nickname (max 20 chars):',nickname)||'';
-    const clean = n.slice(0,20);
-    setNickname(clean);
-    localStorage.setItem('lexit_nick',clean);
-  };
-  const backHome = () => {
-    setShowHome(true);
-    setStack([]); setScore(0); setInput(''); setSubmitState('idle');
-  };
 
+  const changeNick = () => promptNickname();
+  const backHome = () => { setShowHome(true); setStack([]); setScore(0); setInput(''); setSubmitState('idle'); };
+
+  // Home vs Game render
   if (showHome) {
-    return <HomeScreen
-      nickname={nickname}
-      onNicknameChange={changeNick}
-      onStart={(gid?:string, gname?:string) => {
-        if (gid) {
-          setGroupId(gid);
-          setGroupName(gname || gid);
-        }
-        startGame();
-      }}
-    />;
+    return (
+      <HomeScreen
+        nickname={nickname}
+        onNicknameChange={changeNick}
+        onStartSolo={startSolo}
+        onCreateGroup={handleCreateGroup}
+        onJoinGroup={handleJoinGroup}
+        existingGroupName={groupName}
+      />
+    );
   }
 
+  // -------- Game UI --------
   const latestSeed = stack.length ? stack[stack.length-1] : seedWord;
-  const pastWords = stack.length ? [seedWord,...stack.slice(0,-1)] : [];
+  const pastWords = stack.length ? [seedWord, ...stack.slice(0,-1)] : [];
 
-  function formatTime(sec: number) {
-    if (sec>=60) {
-      const m=Math.floor(sec/60),s=sec%60; return `${m}:${s.toString().padStart(2,'0')}`;
-    }
-    return `${sec}`;
-  }
+  const formatTime = (sec: number) => sec>=60
+    ? `${Math.floor(sec/60)}:${(sec%60).toString().padStart(2,'0')}`
+    : `${sec}`;
 
-  const handleHelpClose = () => { setShowHelp(false); inputRef.current?.focus(); };
   const shakeInput = async () => {
     const el = inputRef.current;
     if (el) el.style.caretColor = 'transparent';
-    await inputControls.start({ x: [0,-5,5,-5,0], transition: { duration: 0.3 } });
-    setTimeout(() => { setInput(''); if (el) el.style.caretColor = ''; }, 0);
+    await inputControls.start({ x: [0,-5,5,-5,0], transition:{ duration:0.3 } });
+    setTimeout(() => { setInput(''); if (el) el.style.caretColor=''; }, 0);
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
-      <HowToModal open={showHelp} onClose={() => setShowHelp(false)} focusInput={() => inputRef.current?.focus()} />
+      <HowToModal open={showHelp} onClose={()=>setShowHelp(false)} focusInput={()=>inputRef.current?.focus()} />
 
       {/* Top bar */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between max-w-md mx-auto px-4">
@@ -303,9 +370,7 @@ export default function Page() {
             placeholder="ENTER WORD"
             className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
             animate={inputControls}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
+            autoComplete="off" autoCorrect="off" spellCheck={false}
           />
           <button onClick={submitWord} className="h-14 w-14 rounded-xl bg-[#3BB2F6] flex items-center justify-center text-white text-xl">
             ↵
@@ -334,15 +399,21 @@ export default function Page() {
   );
 }
 
-// ---------- Home screen (with Create‑Group) ----------
+// ---------- Home screen ----------
 function HomeScreen({
   nickname,
   onNicknameChange,
-  onStart,
+  onStartSolo,
+  onCreateGroup,
+  onJoinGroup,
+  existingGroupName,
 }: {
   nickname: string;
   onNicknameChange: () => void;
-  onStart: (gid?: string, gname?: string) => void;
+  onStartSolo: () => void;
+  onCreateGroup: () => void;
+  onJoinGroup: () => void;
+  existingGroupName: string | null;
 }) {
   const [currentLeader, setCurrentLeader] = useState<{ name: string; score: number } | null>(null);
 
@@ -358,61 +429,30 @@ function HomeScreen({
     })();
   }, []);
 
-  // --- Create‑Group handler ---
-  const handleCreateGroup = async () => {
-    const name = prompt('Enter a new group name:')?.trim();
-    if (!name) return;
-    try {
-      const res = await fetch('/api/groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        onStart(data.id, name);
-      } else if (data.error === 'name-taken' && Array.isArray(data.suggestions)) {
-        alert(`Name taken. Try one of: ${data.suggestions.join(', ')}`);
-      } else {
-        alert('Error creating group');
-      }
-    } catch {
-      alert('Network error creating group');
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden overscroll-none">
-      <motion.div
-        initial="hidden"
-        animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.35 } } }}
-        className="w-full max-w-md px-6 space-y-6"
-      >
-        <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>
-          Lexit
-        </motion.h1>
-        <motion.p variants={childFall} className="text-[#334155] italic">
-          A little goes a long way
-        </motion.p>
+    <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden">
+      <motion.div initial="hidden" animate="show" variants={{ hidden:{}, show:{ transition:{staggerChildren:0.35} } }} className="w-full max-w-md px-6 space-y-6">
+        <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>Lexit</motion.h1>
+        <motion.p variants={childFall} className="text-[#334155] italic">A little goes a long way</motion.p>
 
-        {/* Solo button */}
-        <motion.button
-          variants={childFall}
-          onClick={() => onStart()}
-          className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow"
-        >
-          Daily Challenge
+        <motion.button variants={childFall} onClick={onStartSolo} className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow">
+          Daily Challenge (Solo)
         </motion.button>
 
-        {/* Group button */}
-        <motion.button
-          variants={childFall}
-          onClick={handleCreateGroup}
-          className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow mt-4"
-        >
-          Daily Challenge (Group)
-        </motion.button>
+        {existingGroupName ? (
+          <motion.button variants={childFall} onClick={onStartSolo} className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow mt-4">
+            Daily Challenge (Group)
+          </motion.button>
+        ) : (
+          <motion.div variants={childFall} className="flex flex-col space-y-2">
+            <button onClick={onCreateGroup} className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow">
+              Create a Group
+            </button>
+            <button onClick={onJoinGroup} className="w-full py-4 rounded-2xl bg-[#E2E8F0] text-[#334155] text-2xl font-semibold shadow">
+              Join a Group
+            </button>
+          </motion.div>
+        )}
 
         <motion.div variants={childFall} className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1">
           <div className="underline cursor-pointer" onClick={onNicknameChange}>
