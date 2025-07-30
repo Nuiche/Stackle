@@ -1,6 +1,5 @@
 // lib/saveScore.ts
-
-export type GameMode = 'daily' | 'endless';
+export type GameMode = 'daily' | 'endless' | 'group';
 
 export interface SaveScorePayload {
   name: string;
@@ -9,6 +8,7 @@ export interface SaveScorePayload {
   startSeed: string;
   endSeed: string;
   dayKey?: string;
+  groupId?: string;
 }
 
 export interface SaveScoreResult {

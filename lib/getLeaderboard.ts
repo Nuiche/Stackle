@@ -1,3 +1,4 @@
+// lib/getLeaderboard.ts
 import {
   collection,
   query,
@@ -46,16 +47,30 @@ function mapDocToRow(doc: QueryDocumentSnapshot): Row {
 // Daily (top 15)
 export async function getDailyLeaderboard(
   dayKey: string,
-  top = 15
+  top = 15,
+  groupId?: string
 ): Promise<Row[]> {
-  const q = query(
-    collection(db, 'scores'),
-    where('mode', '==', 'daily'),
-    where('dayKey', '==', dayKey),
-    orderBy('score', 'desc'),
-    orderBy('__name__'),
-    limit(top)
-  );
+  let q;
+  if (groupId) {
+    q = query(
+      collection(db, 'scores'),
+      where('mode', '==', 'group'),
+      where('groupId', '==', groupId),
+      where('dayKey', '==', dayKey),
+      orderBy('score', 'desc'),
+      orderBy('__name__'),
+      limit(top)
+    );
+  } else {
+    q = query(
+      collection(db, 'scores'),
+      where('mode', '==', 'daily'),
+      where('dayKey', '==', dayKey),
+      orderBy('score', 'desc'),
+      orderBy('__name__'),
+      limit(top)
+    );
+  }
   const snap = await getDocs(q);
   return snap.docs.map(mapDocToRow);
 }

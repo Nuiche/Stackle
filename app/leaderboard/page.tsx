@@ -44,6 +44,10 @@ function LeaderboardShareBar() {
 }
 
 export default function Page() {
+  const searchParams = useSearchParams();
+  const groupId = searchParams.get('groupId') || undefined;
+  const groupName = searchParams.get('groupName') || undefined;
+
   return (
     <div className="relative min-h-screen flex flex-col">
       {/* Back & Share buttons in Suspense boundary */}
@@ -52,10 +56,12 @@ export default function Page() {
       </Suspense>
 
       {/* Title pushed down */}
-      <h1 className="mt-16 text-3xl font-bold text-center mb-6">Global Rankings</h1>
+      <h1 className="mt-16 text-3xl font-bold text-center mb-6">
+        {groupId ? `Group: ${decodeURIComponent(groupName!)}` : 'Global Rankings'}
+      </h1>
 
-      {/* Leaderboard contentt */}
-      <LeaderboardClient />
+      {/* Leaderboard content */}
+      <LeaderboardClient groupId={groupId} />
     </div>
   );
 }

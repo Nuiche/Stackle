@@ -11,7 +11,7 @@ import { getTotalGames } from '@/lib/getTotalGames';
 import { dayKey as getDayKey } from '@/lib/dayKey';
 import Link from 'next/link';
 
-export default function LeaderboardClient() {
+export default function LeaderboardClient({ groupId }: { groupId?: string }) {
   const [daily, setDaily] = useState<Row[]>([]);
   const [recent, setRecent] = useState<Row[]>([]);
   const [allTime, setAllTime] = useState<Row[]>([]);
@@ -20,6 +20,29 @@ export default function LeaderboardClient() {
 
   // Track which entry is active (clicked)
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const dk = getDayKey();
+        const [d, r, a, total] = await Promise.all([
+          getDailyLeaderboard(dk, 15, groupId),
+          getMostRecent(10),
+          getAllTime(50),
+          getTotalGames(),
+        ]);
+        setDaily(d);
+        setRecent(r);
+        setAllTime(a);
+        setTotalGames(total);
+      } catch (e) {
+        console.error('Leaderboard load error', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [groupId]);
 
   useEffect(() => {
     const load = async () => {
