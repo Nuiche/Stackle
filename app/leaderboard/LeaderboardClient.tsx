@@ -1,4 +1,3 @@
-// app/leaderboard/LeaderboardClient.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -18,8 +17,6 @@ export default function LeaderboardClient({ groupId }: { groupId?: string }) {
   const [allTime, setAllTime] = useState<Row[]>([]);
   const [totalGames, setTotalGames] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Track which entry is active (clicked)
   const [activeId, setActiveId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,8 +25,8 @@ export default function LeaderboardClient({ groupId }: { groupId?: string }) {
         const dk = getDayKey();
         const [d, r, a, total] = await Promise.all([
           getDailyLeaderboard(dk, 15, groupId),
-          getMostRecent(10),
-          getAllTime(50),
+          getMostRecent(10, groupId),
+          getAllTime(50, groupId),
           getTotalGames(),
         ]);
         setDaily(d);

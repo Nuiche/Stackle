@@ -23,15 +23,10 @@ export type Row = {
   createdAt: number;
 };
 
-/**
- * Helper to map a Firestore document to our Row type,
- * extracting and converting the `createdAt` Timestamp.
- */
 function mapDocToRow(doc: QueryDocumentSnapshot): Row {
   const data = doc.data() as any;
   const rawTs = data.createdAt as Timestamp | undefined;
   const createdAt = rawTs instanceof Timestamp ? rawTs.toMillis() : 0;
-
   return {
     id: doc.id,
     name: data.name,
@@ -44,56 +39,69 @@ function mapDocToRow(doc: QueryDocumentSnapshot): Row {
   };
 }
 
-// Daily (top 15), optionally scoped to a group
+/** Daily (top 15), optionally scoped to a group */
 export async function getDailyLeaderboard(
   dayKey: string,
   top = 15,
   groupId?: string
 ): Promise<Row[]> {
-  let q;
-  if (groupId) {
-    q = query(
-      collection(db, 'scores'),
-      where('mode', '==', 'group'),
-      where('groupId', '==', groupId),
-      where('dayKey', '==', dayKey),
-      orderBy('score', 'desc'),
-      orderBy('__name__'),
-      limit(top)
-    );
-  } else {
-    q = query(
-      collection(db, 'scores'),
-      where('mode', '==', 'daily'),
-      where('dayKey', '==', dayKey),
-      orderBy('score', 'desc'),
-      orderBy('__name__'),
-      limit(top)
-    );
-  }
-  const snap = await getDocs(q);
-  return snap.docs.map(mapDocToRow);
-}
-
-// All-time (top 50)
-export async function getAllTime(top = 50): Promise<Row[]> {
-  const q = query(
-    collection(db, 'scores'),
+  const base = collection(db, 'scores');
+  const common = [
+    where('dayKey', '==', dayKey),
     orderBy('score', 'desc'),
     orderBy('__name__'),
-    limit(top)
-  );
+    limit(top),
+  ];
+  const q = groupId
+    ? query(
+        base,
+        where('mode', '==', 'group'),
+        where('groupId', '==', groupId),
+        ...common
+      )
+    : query(
+        base,
+        where('mode', '==', 'daily'),
+        ...common
+      );
   const snap = await getDocs(q);
   return snap.docs.map(mapDocToRow);
 }
 
-// Most recent (any mode)
-export async function getMostRecent(top = 10): Promise<Row[]> {
-  const q = query(
-    collection(db, 'scores'),
-    orderBy('createdAt', 'desc'),
-    limit(top)
-  );
+/** Recent games (top N), optionally scoped to a group */
+export async function getMostRecent(
+  top = 10,
+  groupId?: string
+): Promise<Row[]> {
+  const base = collection(db, 'scores');
+  const common = [orderBy('createdAt', 'desc'), limit(top)];
+  const q = groupId
+    ? query(
+        base,
+        where('mode', '==', 'group'),
+        where('groupId', '==', groupId),
+        ...common
+      )
+    : query(base, ...common);
+  const snap = await getDocs(q);
+  return snap.docs.map(mapDocToRow);
+}
+
+/** All-time top scores (top N), optionally scoped to a group */
+export async function getAllTime(
+  top = 50,
+  groupId?: string
+): Promise<Row[]> {
+  const base = collection(db, 'scores');
+  const common = [orderBy('score', 'desc'), orderBy('__name__'), limit(top)];
+  const q = groupId
+    ? query(
+        base,
+        where('mode', '==', 'group'),
+        where('groupId', '==', groupId),
+        ...common
+      )
+    : query(base, ...common);
   const snap = await getDocs(q);
   return snap.docs.map(mapDocToRow);
 }
