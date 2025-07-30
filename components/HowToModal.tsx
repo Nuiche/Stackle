@@ -1,18 +1,38 @@
-'use client'
+// components/HowToModal.tsx
+'use client';
 
-import React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import React, { ReactNode } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+export interface HowToModalProps {
+  open: boolean;
+  onClose: () => void;
+  focusInput?: () => void;
+  /** If provided, overrides the default heading */
+  title?: string;
+  /** If provided, replaces the default “How to Play” content */
+  children?: ReactNode;
+}
 
 export default function HowToModal({
   open,
   onClose,
   focusInput,
-}: {
-  open: boolean
-  onClose: () => void
-  focusInput?: () => void
-}) {
-  if (!open) return null
+  title,
+  children,
+}: HowToModalProps) {
+  if (!open) return null;
+
+  const defaultTitle = 'How to Play Lexit';
+  const defaultContent = (
+    <ol className="list-decimal list-inside space-y-2 text-sm">
+      <li>Start with the daily seed word.</li>
+      <li>Change exactly one letter (insert, delete or replace) per turn.</li>
+      <li>Words must be at least 4 letters and at most 8 letters long.</li>
+      <li>Earn points equal to each word’s length.</li>
+      <li>You have 1 minute, 30 seconds to chain as many words as possible!</li>
+    </ol>
+  );
 
   return (
     <AnimatePresence>
@@ -30,20 +50,16 @@ export default function HowToModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.8, opacity: 0 }}
           className="bg-white rounded-xl p-6 max-w-sm w-full text-[#334155] relative"
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
-          <h2 className="text-2xl font-bold mb-3">How to Play Lexit</h2>
-          <ol className="list-decimal list-inside space-y-2 text-sm">
-            <li>Start with the daily seed word.</li>
-            <li>Change exactly one letter (insert, delete or replace) per turn.</li>
-            <li>Words must be at least 4 letters and at most 8 letters long.</li>
-            <li>Earn points equal to each word’s length.</li>
-            <li>You have 1 minute, 30 seconds to chain as many words as possible!</li>
-          </ol>
+          <h2 className="text-2xl font-bold mb-3">{title ?? defaultTitle}</h2>
+          <div className="mb-4">
+            {children ?? defaultContent}
+          </div>
           <button
             onClick={() => {
-              focusInput?.()
-              onClose()
+              focusInput?.();
+              onClose();
             }}
             className="mt-5 w-full py-2 bg-[#3BB2F6] text-white rounded-lg"
           >
@@ -52,5 +68,5 @@ export default function HowToModal({
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  )
+  );
 }
