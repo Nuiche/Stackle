@@ -302,11 +302,26 @@ export default function Page() {
   };
 
   const handleShare = () => {
-    const text = `I scored ${score} in today's Daily Challenge on Lexit!`;
-    const url = window.location.origin;
-    if (navigator.share) navigator.share({ text, url }).catch(() => navigator.clipboard.writeText(`${text} ${url}`));
-    else navigator.clipboard.writeText(`${text} ${url}`);
-  };
+  const base = window.location.origin;
+  let text, url;
+  if (groupId && groupName) {
+    url = `${base}?groupId=${encodeURIComponent(groupId)}&groupName=${encodeURIComponent(groupName)}`;
+    text = `Join my Lexit group! ${url}`;
+  } else {
+    url = base;
+    text = `I scored ${score} in today's Daily Challenge on Lexit! ${url}`;
+  }
+  if (navigator.share) {
+    navigator.share({ text, url }).catch(() => {
+      navigator.clipboard.writeText(text);
+      alert('Link copied to clipboard!');
+    });
+  } else {
+    navigator.clipboard.writeText(text);
+    alert('Link copied to clipboard!');
+  }
+};
+
   const changeNick = () => setModalType('nickname');
   const backHome = () => {
     setShowHome(true);
@@ -338,8 +353,7 @@ export default function Page() {
           title="Pick your unique nickname"
           instructions={
             <>
-              Make it unique so people in your group can spot you easily.<br />
-              Consider adding initials or a number.
+              Make it unique so people in your group can spot you easily. Consider adding initials or a number.
             </>
           }
           initialValue={nickname}
