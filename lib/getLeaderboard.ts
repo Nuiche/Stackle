@@ -39,7 +39,7 @@ function mapDocToRow(doc: QueryDocumentSnapshot): Row {
   };
 }
 
-/** Daily (top 15), optionally scoped to a group */
+/** Daily (top 15), optionally scoped to a group; global pulls both daily + group */
 export async function getDailyLeaderboard(
   dayKey: string,
   top = 15,
@@ -52,6 +52,7 @@ export async function getDailyLeaderboard(
     orderBy('__name__'),
     limit(top),
   ];
+
   const q = groupId
     ? query(
         base,
@@ -61,9 +62,10 @@ export async function getDailyLeaderboard(
       )
     : query(
         base,
-        where('mode', '==', 'daily'),
+        where('mode', 'in', ['daily', 'group']),  // ← include both
         ...common
       );
+
   const snap = await getDocs(q);
   return snap.docs.map(mapDocToRow);
 }
@@ -83,11 +85,12 @@ export async function getMostRecent(
         ...common
       )
     : query(base, ...common);
+
   const snap = await getDocs(q);
   return snap.docs.map(mapDocToRow);
 }
 
-/** All-time top scores (top N), optionally scoped to a group */
+/** All-time (top 50), optionally scoped to a group */
 export async function getAllTime(
   top = 50,
   groupId?: string
@@ -102,6 +105,7 @@ export async function getAllTime(
         ...common
       )
     : query(base, ...common);
+
   const snap = await getDocs(q);
   return snap.docs.map(mapDocToRow);
 }
