@@ -15,7 +15,7 @@ import { FaShareAlt, FaList } from 'react-icons/fa';
 
 import { burst } from '@/lib/confetti';
 import { gaEvent } from '@/lib/gtag';
-import { saveScore, GameMode, SaveScoreResult } from '@/lib/saveScore';
+import { saveScore, GameMode } from '@/lib/saveScore';
 import { dayKey as buildDayKey } from '@/lib/dayKey';
 import HowToModal from '@/components/HowToModal';
 import { titleFont } from '@/lib/fonts';
@@ -24,7 +24,7 @@ import { getDailyLeaderboard } from '@/lib/getLeaderboard';
 // ---------- constants ----------
 const MAX_LEN = 8;
 const MIN_LEN = 4;
-const POP_INTERVALS = [10, 25, 50, 75, 100, 125, 150, 175, 200];
+const POP_INTERVALS = [10,25,50,75,100,125,150,175,200];
 
 const popVariants: Variants = {
   initial: { opacity: 0, scale: 0.8, y: -10 },
@@ -32,36 +32,36 @@ const popVariants: Variants = {
     opacity: 1,
     scale: 1,
     y: 0,
-    transition: { type: 'spring', stiffness: 260, damping: 20 },
+    transition: { type:'spring', stiffness:260, damping:20 },
   },
-  exit: { opacity: 0, scale: 0.8, y: 10, transition: { duration: 0.15 } },
+  exit: { opacity: 0, scale:0.8, y:10, transition:{ duration:0.15 } },
 };
 
 const childFall: Variants = {
-  hidden: { opacity: 0, y: -40 },
-  show:  { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200, damping: 18 } },
+  hidden: { opacity:0, y:-40 },
+  show:   { opacity:1, y:0, transition:{ type:'spring', stiffness:200, damping:18 } },
 };
 
-// ---------- component ----------
+// ---------- Page component ----------
 export default function Page() {
   const router = useRouter();
 
-  // Persisted state (initialize empty, hydrate in useEffect)
+  // persisted
   const [nickname, setNickname]   = useState<string>('');
-  const [groupId, setGroupId]     = useState<string | null>(null);
-  const [groupName, setGroupName] = useState<string | null>(null);
+  const [groupId, setGroupId]     = useState<string|null>(null);
+  const [groupName, setGroupName] = useState<string|null>(null);
 
-  // UI state
+  // UI
   const [showHome, setShowHome] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const inputControls = useAnimation();
 
-  // Timer state
+  // timer
   const TIME_LIMIT = 90;
   const [timeLeft, setTimeLeft] = useState<number>(TIME_LIMIT);
-  const timerRef = useRef<number | null>(null);
+  const timerRef = useRef<number|null>(null);
 
-  // Game state
+  // game
   const [seedWord, setSeedWord]   = useState('TREAT');
   const [stack, setStack]         = useState<string[]>([]);
   const [score, setScore]         = useState(0);
@@ -71,152 +71,138 @@ export default function Page() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Hydrate nickname from localStorage
+  // 1) hydrate nickname
   useEffect(() => {
-    const savedNick = localStorage.getItem('lexit_nick');
-    if (savedNick) setNickname(savedNick);
+    const n = localStorage.getItem('lexit_nick');
+    if (n) setNickname(n);
   }, []);
 
-  // Hydrate groupId/groupName from URL or localStorage
+  // 2) hydrate group from URL or storage
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const gid   = params.get('groupId');
-    const gname = params.get('groupName');
-    if (gid && gname) {
+    const p = new URLSearchParams(window.location.search);
+    const gid = p.get('groupId');
+    const gnm = p.get('groupName');
+    if (gid && gnm) {
       setGroupId(gid);
-      setGroupName(decodeURIComponent(gname));
+      setGroupName(decodeURIComponent(gnm));
       localStorage.setItem('groupId', gid);
-      localStorage.setItem('groupName', gname);
+      localStorage.setItem('groupName', gnm);
     } else {
-      const storedId   = localStorage.getItem('groupId');
-      const storedName = localStorage.getItem('groupName');
-      if (storedId && storedName) {
-        setGroupId(storedId);
-        setGroupName(decodeURIComponent(storedName));
+      const sg = localStorage.getItem('groupId');
+      const sn = localStorage.getItem('groupName');
+      if (sg && sn) {
+        setGroupId(sg);
+        setGroupName(decodeURIComponent(sn));
       }
     }
   }, []);
 
-  // Load dictionary
+  // 3) load dictionary
   useEffect(() => {
     fetch('/api/dictionary')
       .then(res => res.json())
-      .then((words: string[]) => {
-        setDict(new Set(words.map(w => w.toUpperCase())));
-      });
+      .then((ws: string[]) => setDict(new Set(ws.map(w=>w.toUpperCase()))));
   }, []);
 
-  // Focus input when game starts
+  // 4) focus input on start
   useEffect(() => {
     if (!showHome && !showHelp) inputRef.current?.focus();
   }, [showHome, showHelp]);
 
-  // Timer setup/cleanup
+  // 5) timer
   useEffect(() => {
     if (!showHome && !showHelp) {
-      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current && clearInterval(timerRef.current);
       setTimeLeft(TIME_LIMIT);
-      timerRef.current = window.setInterval(() => setTimeLeft(t => t - 1), 1000);
+      timerRef.current = window.setInterval(() => setTimeLeft(t=>t-1),1000);
     }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { timerRef.current && clearInterval(timerRef.current) };
   }, [showHome, showHelp]);
 
-  // End-of-game redirect
+  // 6) end of game → push leaderboard URL
   useEffect(() => {
-    if (timeLeft > 0) return;
-    if (timerRef.current) clearInterval(timerRef.current);
-    const endSeed = stack.length ? stack[stack.length - 1] : seedWord;
+    if (timeLeft>0) return;
+    timerRef.current && clearInterval(timerRef.current);
+    const endSeed = stack.length? stack[stack.length-1] : seedWord;
     const go = () => {
       let url = `/leaderboard?endSeed=${encodeURIComponent(endSeed)}&score=${score}`;
-      if (groupId && groupName) {
-        url += `&groupId=${encodeURIComponent(groupId)}&groupName=${encodeURIComponent(groupName)}`;
-      }
+      if (groupId&&groupName) url += `&groupId=${encodeURIComponent(groupId)}&groupName=${encodeURIComponent(groupName)}`;
       router.push(url);
     };
-    if (score > 0) handleSaveScore().finally(go);
+    if (score>0) handleSaveScore().finally(go);
     else go();
-  }, [timeLeft, score, groupId, groupName, router, stack, seedWord]);
+  }, [timeLeft,score,groupId,groupName,router,stack,seedWord]);
 
-  // Prompt for unique nickname
+  // prompt nickname
   const promptNickname = () => {
     let n = '';
-    while (!n) {
-      n = prompt('Please enter a unique nickname (max 20 chars):','')?.trim() || '';
-      if (!n) alert('A nickname is required.');
+    while(!n){
+      n = prompt('Please enter a unique nickname (max 20 chars):','')?.trim()||'';
+      if(!n) alert('A nickname is required.');
     }
     const clean = n.slice(0,20);
     setNickname(clean);
-    localStorage.setItem('lexit_nick', clean);
+    localStorage.setItem('lexit_nick',clean);
     return clean;
   };
 
-  // Create a new group
-  const handleCreateGroup = async () => {
+  // create group helper
+  const createGroupFlow = async() => {
     const raw = prompt('Enter a new group name:','')?.trim();
-    if (!raw) return;
-    const res = await fetch('/api/groups', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ name: raw }),
+    if(!raw) return false;
+    const res = await fetch('/api/groups',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:raw}),
     });
-    const data = await res.json() as { ok: boolean; id: string; displayName: string };
-    if (!data?.ok) {
-      alert('Error creating group');
-      return;
-    }
+    const data = await res.json() as {ok:boolean;id:string;displayName:string};
+    if(!data?.ok){ alert('Error creating group'); return false; }
     setGroupId(data.id);
     setGroupName(data.displayName);
-    localStorage.setItem('groupId', data.id);
-    localStorage.setItem('groupName', encodeURIComponent(data.displayName));
-
+    localStorage.setItem('groupId',data.id);
+    localStorage.setItem('groupName',encodeURIComponent(data.displayName));
+    // copy link
     const link = `${window.location.origin}?groupId=${encodeURIComponent(data.id)}&groupName=${encodeURIComponent(data.displayName)}`;
-    navigator.clipboard.writeText(link).catch(() => {});
+    navigator.clipboard.writeText(link).catch(()=>{});
     alert(`Group created! Share this link:\n\n${link}`);
-
-    if (!nickname) promptNickname();
-    startGame('group');
+    return true;
   };
 
-  // Join existing group
-  const handleJoinGroup = async () => {
-    const code = prompt('Paste your invite link or enter group code:','')?.trim();
-    if (!code) return;
-    let gid = code, gname = '';
-    try {
-      const url = new URL(code);
-      gid = url.searchParams.get('groupId')   || code;
-      gname = url.searchParams.get('groupName') || '';
-    } catch {}
-    const res = await fetch(`/api/groups/${encodeURIComponent(gid)}`);
-    if (res.status === 404) {
-      alert('Group not found');
+  // unified “start group” flow
+  const onStartGroup = async() => {
+    // 1) have both → go
+    if(groupId && nickname){
+      startGame('group');
       return;
     }
-    const data = await res.json() as { ok: boolean; displayName: string };
-    if (!data?.ok) {
-      alert('Group not found');
+    // 2) have nickname but no group → create then go
+    if(!groupId && nickname){
+      const ok = await createGroupFlow();
+      ok && startGame('group');
       return;
     }
-    setGroupId(gid);
-    const display = data.displayName || gname;
-    setGroupName(display);
-    localStorage.setItem('groupId', gid);
-    localStorage.setItem('groupName', encodeURIComponent(display));
-
-    if (!nickname) promptNickname();
-    startGame('group');
+    // 3) have group but no nickname → prompt nick then go
+    if(groupId && !nickname){
+      promptNickname();
+      startGame('group');
+      return;
+    }
+    // 4) neither → create (which will alert link), then prompt nick, then go
+    const ok = await createGroupFlow();
+    if(ok){
+      promptNickname();
+      startGame('group');
+    }
   };
 
-  // Solo start
-  const startSolo = () => startGame('daily');
-  // Group start
-  const startGroup = () => startGame('group');
+  // solo simply prompts nick if needed then go
+  const onStartSolo = () => {
+    if(!nickname) promptNickname();
+    startGame('daily');
+  };
 
-  // Common start logic
-  const startGame = async (mode: GameMode) => {
-    if (!nickname) promptNickname();
+  // common start
+  const startGame = async(mode:GameMode) => {
     const r = await fetch('/api/seed');
     const s = await r.json();
     setSeedWord(s.seed.toUpperCase());
@@ -224,131 +210,111 @@ export default function Page() {
     setShowHome(false); setShowHelp(true);
   };
 
-  // Save score
-  const handleSaveScore = async () => {
-    if (submitState !== 'idle') return;
+  // save
+  const handleSaveScore = async() => {
+    if(submitState!=='idle') return;
     setSubmitState('saving');
-    try {
+    try{
       const payload: any = {
-        name: nickname || 'Anon',
-        mode: groupId ? 'group' : 'daily',
+        name: nickname||'Anon',
+        mode: groupId? 'group':'daily',
         score,
         startSeed: seedWord,
-        endSeed: stack.at(-1) ?? seedWord,
+        endSeed: stack.at(-1)??seedWord,
         dayKey: buildDayKey(),
       };
-      if (groupId) payload.groupId = groupId;
+      if(groupId) payload.groupId = groupId;
       const res = await saveScore(payload);
-      if (res.ok) gaEvent('submit_score', { score, mode: payload.mode });
+      if(res.ok) gaEvent('submit_score',{score,mode:payload.mode});
       setSubmitState('saved');
-    } catch {
+    }catch{
       setSubmitState('idle');
     }
   };
 
-  // Word submission helpers
+  // word submission...
   const clearInput = () => setInput('');
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e:ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.toUpperCase();
-    setInput(raw.slice(0, MAX_LEN));
+    setInput(raw.slice(0,MAX_LEN));
   };
-  const isOneLetterDifferent = (a: string, b: string) => {
-    if (Math.abs(a.length - b.length) > 1) return false;
-    let i = 0, j = 0, edits = 0;
-    while (i < a.length && j < b.length) {
-      if (a[i] === b[j]) { i++; j++; }
-      else {
-        edits++;
-        if (edits > 1) return false;
-        if (a.length > b.length) i++;
-        else if (b.length > a.length) j++;
-        else { i++; j++; }
+  const isOneLetterDifferent = (a:string,b:string) => {
+    if(Math.abs(a.length-b.length)>1) return false;
+    let i=0,j=0,ed=0;
+    while(i<a.length&&j<b.length){
+      if(a[i]===b[j]){i++;j++;}
+      else{
+        ed++; if(ed>1) return false;
+        if(a.length>b.length) i++;
+        else if(b.length>a.length) j++;
+        else {i++;j++;}
       }
     }
-    edits += a.length - i + (b.length - j);
-    return edits <= 1;
+    ed += a.length-i + (b.length-j);
+    return ed<=1;
   };
-  const submitWord = useCallback(() => {
-    const newWord = input.trim().toUpperCase();
-    if (!newWord) return;
-    if (
-      newWord.length < MIN_LEN ||
-      [seedWord, ...stack].includes(newWord) ||
-      !dict.has(newWord) ||
-      !isOneLetterDifferent(stack.length ? stack[stack.length-1] : seedWord, newWord)
-    ) {
+  const submitWord = useCallback(()=>{
+    const w = input.trim().toUpperCase();
+    if(!w || w.length<MIN_LEN || [seedWord,...stack].includes(w) || !dict.has(w) || !isOneLetterDifferent(stack.length?stack[stack.length-1]:seedWord,w)){
       shakeInput();
       return;
     }
-
-    setStack(p => [...p, newWord]);
-    setScore(s => s + newWord.length);
+    setStack(s=>[...s,w]);
+    setScore(s=>s+w.length);
     clearInput();
     inputRef.current?.focus();
-    if (POP_INTERVALS.includes(score + 1)) burst();
-
-    fetch(`/api/define?word=${newWord}`)
-      .then(r => r.json())
-      .then(data => console.log('Definitions for', newWord, data.definitions))
-      .catch(() => {});
-  }, [input, seedWord, stack, score, dict]);
-
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); submitWord(); }
+    if(POP_INTERVALS.includes(score+1)) burst();
+    fetch(`/api/define?word=${w}`).catch(()=>{});
+  },[input,seedWord,stack,score,dict]);
+  const onKeyDown = (e:KeyboardEvent<HTMLInputElement>)=>{
+    if(e.key==='Enter'){e.preventDefault();submitWord()}
   };
-  const onVKPress = (key: string) => {
-    if (key === 'ENTER')      { submitWord(); return; }
-    if (key === 'DEL')        { setInput(v => v.slice(0, -1)); return; }
-    if (input.length >= MAX_LEN) return;
-    setInput(v => (v + key).toUpperCase());
+  const onVKPress = (k:string)=>{
+    if(k==='ENTER'){submitWord();return}
+    if(k==='DEL'){setInput(v=>v.slice(0,-1));return}
+    if(input.length>=MAX_LEN) return;
+    setInput(v=>(v+k).toUpperCase());
   };
-
-  const handleShare = () => {
-    const text = `I scored ${score} in today's Daily Challenge on Lexit!`;
-    const url  = window.location.origin;
-    if (navigator.share) navigator.share({ text, url })
-      .catch(() => navigator.clipboard.writeText(`${text} ${url}`));
-    else navigator.clipboard.writeText(`${text} ${url}`);
+  const handleShare = ()=>{
+    const txt = `I scored ${score} in today's Daily Challenge on Lexit!`;
+    const url = window.location.origin;
+    if(navigator.share) navigator.share({text:txt,url}).catch(()=>navigator.clipboard.writeText(`${txt} ${url}`));
+    else navigator.clipboard.writeText(`${txt} ${url}`);
   };
-
   const changeNick = () => promptNickname();
-  const backHome  = () => {
+  const backHome = () => {
     setShowHome(true);
     setStack([]); setScore(0); setInput(''); setSubmitState('idle');
   };
 
-  // Home vs Game render
-  if (showHome) {
+  // render
+  if(showHome){
     return (
       <HomeScreen
         nickname={nickname}
         onNicknameChange={changeNick}
-        onStartSolo={startSolo}
-        onStartGroup={startGroup}
-        onCreateGroup={handleCreateGroup}
-        onJoinGroup={handleJoinGroup}
+        onStartSolo={onStartSolo}
+        onStartGroup={onStartGroup}
         existingGroupName={groupName}
       />
     );
   }
 
-  // -------- Game UI --------
-  const latestSeed = stack.length ? stack[stack.length-1] : seedWord;
-  const pastWords  = stack.length ? [seedWord, ...stack.slice(0,-1)] : [];
-
-  const formatTime = (sec: number) =>
-    sec >= 60
+  // ————————— GAME UI —————————
+  const latestSeed = stack.length? stack[stack.length-1] : seedWord;
+  const pastWords  = stack.length? [seedWord,...stack.slice(0,-1)] : [];
+  const formatTime = (sec:number)=>
+    sec>=60
       ? `${Math.floor(sec/60)}:${(sec%60).toString().padStart(2,'0')}`
       : `${sec}`;
-
-  const shakeInput = async () => {
+  const shakeInput = async()=>{
     const el = inputRef.current;
-    if (el) el.style.caretColor = 'transparent';
-    await inputControls.start({ x:[0,-5,5,-5,0], transition:{ duration:0.3 } });
-    setTimeout(() => {
+    if(el) el.style.caretColor='transparent';
+    await inputControls.start({ x:[0,-5,5,-5,0], transition:{duration:0.3}});
+    setTimeout(()=>{
       setInput('');
-      if (el) el.style.caretColor = '';
-    }, 0);
+      if(el) el.style.caretColor='';
+    },0);
   };
 
   return (
@@ -366,9 +332,10 @@ export default function Page() {
             <FaShareAlt /> Share
           </button>
           <a
-            href={groupId && groupName
-              ? `/leaderboard?groupId=${encodeURIComponent(groupId)}&groupName=${encodeURIComponent(groupName)}`
-              : '/leaderboard'
+            href={
+              groupId&&groupName
+                ? `/leaderboard?groupId=${encodeURIComponent(groupId)}&groupName=${encodeURIComponent(groupName)}`
+                : '/leaderboard'
             }
             className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center gap-2"
           >
@@ -397,7 +364,6 @@ export default function Page() {
             ↵
           </button>
         </div>
-
         {!showHelp && (
           <motion.div
             key={latestSeed}
@@ -415,7 +381,7 @@ export default function Page() {
       {/* Past words */}
       <div className="w-full max-w-md px-4 flex-1 overflow-hidden">
         <AnimatePresence initial={false}>
-          {pastWords.slice().reverse().map(w => (
+          {pastWords.slice().reverse().map(w=>(
             <motion.div
               key={w}
               variants={popVariants}
@@ -439,38 +405,33 @@ function HomeScreen({
   onNicknameChange,
   onStartSolo,
   onStartGroup,
-  onCreateGroup,
-  onJoinGroup,
   existingGroupName,
 }: {
   nickname: string;
   onNicknameChange: () => void;
   onStartSolo: () => void;
   onStartGroup: () => void;
-  onCreateGroup: () => void;
-  onJoinGroup: () => void;
   existingGroupName: string | null;
 }) {
-  const [currentLeader, setCurrentLeader] = useState<{ name: string; score: number } | null>(null);
+  const [currentLeader, setCurrentLeader] = useState<{name:string;score:number}|null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
+  useEffect(()=>{
+    (async()=>{
+      try{
         const dk = buildDayKey();
-        const [leader] = await getDailyLeaderboard(dk, 1);
-        if (leader) setCurrentLeader({ name: leader.name, score: leader.score });
-      } catch (e) {
-        console.error('Error loading current leader', e);
+        const [ldr] = await getDailyLeaderboard(dk,1);
+        if(ldr) setCurrentLeader({name:ldr.name,score:ldr.score});
+      }catch(e){
+        console.error(e);
       }
     })();
-  }, []);
+  },[]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden">
       <motion.div
-        initial="hidden"
-        animate="show"
-        variants={{ hidden:{}, show:{ transition:{ staggerChildren:0.35 } } }}
+        initial="hidden" animate="show"
+        variants={{hidden:{},show:{transition:{staggerChildren:0.35}}}}
         className="w-full max-w-md px-6 space-y-6"
       >
         <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>
@@ -488,41 +449,24 @@ function HomeScreen({
           Daily Challenge (Solo)
         </motion.button>
 
-        {existingGroupName ? (
-          <motion.button
-            variants={childFall}
-            onClick={onStartGroup}
-            className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow mt-4"
-          >
-            Daily Challenge (Group)
-          </motion.button>
-        ) : (
-          <motion.div variants={childFall} className="flex flex-col space-y-2">
-            <button
-              onClick={onCreateGroup}
-              className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow"
-            >
-              Create a Group
-            </button>
-            <button
-              onClick={onJoinGroup}
-              className="w-full py-4 rounded-2xl bg-[#E2E8F0] text-[#334155] text-2xl font-semibold shadow"
-            >
-              Join a Group
-            </button>
-          </motion.div>
-        )}
+        <motion.button
+          variants={childFall}
+          onClick={onStartGroup}
+          className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow mt-4"
+        >
+          Daily Challenge (Group)
+        </motion.button>
 
         <motion.div
           variants={childFall}
           className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1"
         >
           <div className="underline cursor-pointer" onClick={onNicknameChange}>
-            Change Nickname {nickname ? `(@${nickname})` : ''}
+            Change Nickname {nickname?`(@${nickname})`:''}
           </div>
           <span>|</span>
           <div>
-            Leader: {currentLeader ? `${currentLeader.name} (${currentLeader.score})` : 'Loading...'}
+            Leader: {currentLeader?`${currentLeader.name} (${currentLeader.score})`:'Loading...'}
           </div>
         </motion.div>
       </motion.div>
