@@ -168,11 +168,16 @@ export default function Page() {
     localStorage.setItem('groupId', data.id);
     localStorage.setItem('groupName', encodeURIComponent(data.displayName));
     // copy invite link
-    const link = `${window.location.origin}?groupId=${encodeURIComponent(data.id)}&groupName=${encodeURIComponent(
-      data.displayName
+    const invite = `${window.location.origin}?groupId=${encodeURIComponent(data.id)}&groupName=${encodeURIComponent(
+     data.displayName
     )}`;
-    navigator.clipboard.writeText(link).catch(() => {});
-    alert(`Group created! Share this link:\n\n${link}`);
+    // auto‑copy to clipboard
+    try {
+     await navigator.clipboard.writeText(invite);
+      alert('Invite link copied to clipboard!');
+    } catch {
+      alert(`Group created! Here’s the invite link:\n\n${invite}`);
+    }
     setModalType('nickname');
   };
 

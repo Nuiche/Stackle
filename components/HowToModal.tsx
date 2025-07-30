@@ -34,6 +34,8 @@ export default function HowToModal({
     </ol>
   );
 
+  const isPrompt = Boolean(children);  // if there are custom children, we're in PromptModal mode
+
   return (
     <AnimatePresence>
       <motion.div
@@ -56,15 +58,17 @@ export default function HowToModal({
           <div className="mb-4">
             {children ?? defaultContent}
           </div>
-          <button
-            onClick={() => {
-              focusInput?.();
-              onClose();
-            }}
-            className="mt-5 w-full py-2 bg-[#3BB2F6] text-white rounded-lg"
-          >
-            Got it
-          </button>
+          {!isPrompt && (
+            <button
+              onClick={() => {
+               focusInput?.();
+                onClose();
+             }}
+             className="mt-5 w-full py-2 bg-[#3BB2F6] text-white rounded-lg"
+            >
+             Got it
+           </button>
+         )}
         </motion.div>
       </motion.div>
     </AnimatePresence>
