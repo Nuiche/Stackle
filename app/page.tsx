@@ -1,6 +1,5 @@
 // app/page.tsx
 'use client';
-export const dynamic = 'force-dynamic';
 
 import React, {
   useState,
@@ -47,13 +46,10 @@ const childFall: Variants = {
 export default function Page() {
   const router = useRouter();
 
-  // Persisted state
-  const [nickname, setNickname]    = useState<string>(() => localStorage.getItem('lexit_nick') || '');
-  const [groupId, setGroupId]      = useState<string | null>(() => localStorage.getItem('groupId'));
-  const [groupName, setGroupName]  = useState<string | null>(() => {
-    const g = localStorage.getItem('groupName');
-    return g ? decodeURIComponent(g) : null;
-  });
+  // Persisted state (initialize empty, hydrate in useEffect)
+  const [nickname, setNickname]   = useState<string>('');
+  const [groupId, setGroupId]     = useState<string | null>(null);
+  const [groupName, setGroupName] = useState<string | null>(null);
 
   // UI state
   const [showHome, setShowHome] = useState(true);
@@ -75,16 +71,29 @@ export default function Page() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Hydrate groupId/groupName from URL on initial mount
+  // Hydrate nickname from localStorage
+  useEffect(() => {
+    const savedNick = localStorage.getItem('lexit_nick');
+    if (savedNick) setNickname(savedNick);
+  }, []);
+
+  // Hydrate groupId/groupName from URL or localStorage
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const gid = params.get('groupId');
+    const gid   = params.get('groupId');
     const gname = params.get('groupName');
     if (gid && gname) {
       setGroupId(gid);
       setGroupName(decodeURIComponent(gname));
       localStorage.setItem('groupId', gid);
       localStorage.setItem('groupName', gname);
+    } else {
+      const storedId   = localStorage.getItem('groupId');
+      const storedName = localStorage.getItem('groupName');
+      if (storedId && storedName) {
+        setGroupId(storedId);
+        setGroupName(decodeURIComponent(storedName));
+      }
     }
   }, []);
 
@@ -177,7 +186,7 @@ export default function Page() {
     let gid = code, gname = '';
     try {
       const url = new URL(code);
-      gid = url.searchParams.get('groupId') || code;
+      gid = url.searchParams.get('groupId')   || code;
       gname = url.searchParams.get('groupName') || '';
     } catch {}
     const res = await fetch(`/api/groups/${encodeURIComponent(gid)}`);
@@ -221,7 +230,7 @@ export default function Page() {
     setSubmitState('saving');
     try {
       const payload: any = {
-        name: nickname||'Anon',
+        name: nickname || 'Anon',
         mode: groupId ? 'group' : 'daily',
         score,
         startSeed: seedWord,
@@ -266,7 +275,7 @@ export default function Page() {
       newWord.length < MIN_LEN ||
       [seedWord, ...stack].includes(newWord) ||
       !dict.has(newWord) ||
-      !isOneLetterDifferent(stack.length ? stack[stack.length-1] : seedWord, newWord)  
+      !isOneLetterDifferent(stack.length ? stack[stack.length-1] : seedWord, newWord)
     ) {
       shakeInput();
       return;
@@ -281,7 +290,7 @@ export default function Page() {
     fetch(`/api/define?word=${newWord}`)
       .then(r => r.json())
       .then(data => console.log('Definitions for', newWord, data.definitions))
-      .catch(() => {/* ignore */});
+      .catch(() => {});
   }, [input, seedWord, stack, score, dict]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -289,7 +298,7 @@ export default function Page() {
   };
   const onVKPress = (key: string) => {
     if (key === 'ENTER')      { submitWord(); return; }
-    if (key === 'DEL')        { setInput(v => v.slice(0,-1)); return; }
+    if (key === 'DEL')        { setInput(v => v.slice(0, -1)); return; }
     if (input.length >= MAX_LEN) return;
     setInput(v => (v + key).toUpperCase());
   };
