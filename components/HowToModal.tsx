@@ -34,7 +34,7 @@ export default function HowToModal({
     </ol>
   );
 
-  const isPrompt = Boolean(children);  // if there are custom children, we're in PromptModal mode
+  const isPrompt = Boolean(children);  // prompts supply custom children
 
   return (
     <AnimatePresence>
@@ -54,21 +54,29 @@ export default function HowToModal({
           className="bg-white rounded-xl p-6 max-w-sm w-full text-[#334155] relative"
           onClick={(e) => e.stopPropagation()}
         >
-          <h2 className="text-2xl font-bold mb-3">{title ?? defaultTitle}</h2>
+          {/* only show default title on the help modal, not prompts */}
+          {!isPrompt && (
+            <h2 className="text-2xl font-bold mb-3">
+              {title ?? defaultTitle}
+            </h2>
+          )}
+
           <div className="mb-4">
             {children ?? defaultContent}
           </div>
+
+          {/* only show Got it on the help modal */}
           {!isPrompt && (
             <button
               onClick={() => {
-               focusInput?.();
+                focusInput?.();
                 onClose();
-             }}
-             className="mt-5 w-full py-2 bg-[#3BB2F6] text-white rounded-lg"
+              }}
+              className="mt-5 w-full py-2 bg-[#3BB2F6] text-white rounded-lg"
             >
-             Got it
-           </button>
-         )}
+              Got it
+            </button>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>
