@@ -9,7 +9,7 @@ import React, {
   useCallback,
   ChangeEvent,
 } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants, useAnimation } from 'framer-motion';
 import { FaShareAlt, FaList } from 'react-icons/fa';
 
@@ -45,12 +45,14 @@ const childFall: Variants = {
 // ---------- component ----------
 export default function Page() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Persisted state
-  const [nickname, setNickname] = useState<string>('');
-  const [groupId, setGroupId] = useState<string | null>(null);
-  const [groupName, setGroupName] = useState<string | null>(null);
+  const [nickname, setNickname]    = useState<string>(() => localStorage.getItem('lexit_nick') || '');
+  const [groupId, setGroupId]      = useState<string|null>(() => localStorage.getItem('groupId'));
+  const [groupName, setGroupName]  = useState<string|null>(() => {
+    const g = localStorage.getItem('groupName');
+    return g ? decodeURIComponent(g) : null;
+  });
 
   // UI state
   const [showHome, setShowHome] = useState(true);
@@ -60,50 +62,41 @@ export default function Page() {
   // Timer state
   const TIME_LIMIT = 90;
   const [timeLeft, setTimeLeft] = useState<number>(TIME_LIMIT);
-  const timerRef = useRef<number | null>(null);
+  const timerRef = useRef<number|null>(null);
 
   // Game state
-  const [seedWord, setSeedWord] = useState('TREAT');
-  const [stack, setStack] = useState<string[]>([]);
-  const [score, setScore] = useState(0);
-  const [input, setInput] = useState('');
-  const [dict, setDict] = useState<Set<string>>(new Set());
+  const [seedWord, setSeedWord]   = useState('TREAT');
+  const [stack, setStack]         = useState<string[]>([]);
+  const [score, setScore]         = useState(0);
+  const [input, setInput]         = useState('');
+  const [dict, setDict]           = useState<Set<string>>(new Set());
   const [submitState, setSubmitState] = useState<'idle'|'saving'|'saved'>('idle');
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Hydrate from storage or URL
+  // Hydrate groupId/groupName from URL on initial mount
   useEffect(() => {
-    const savedNick = localStorage.getItem('lexit_nick');
-    if (savedNick) setNickname(savedNick);
-
-    const gid = searchParams.get('groupId');
-    const gname = searchParams.get('groupName');
+    const params = new URLSearchParams(window.location.search);
+    const gid = params.get('groupId');
+    const gname = params.get('groupName');
     if (gid && gname) {
       setGroupId(gid);
       setGroupName(decodeURIComponent(gname));
       localStorage.setItem('groupId', gid);
       localStorage.setItem('groupName', gname);
-      return;
     }
-    const sgid = localStorage.getItem('groupId');
-    const sgname = localStorage.getItem('groupName');
-    if (sgid && sgname) {
-      setGroupId(sgid);
-      setGroupName(decodeURIComponent(sgname));
-    }
-  }, [searchParams]);
+  }, []);
 
   // Load dictionary
   useEffect(() => {
     fetch('/api/dictionary')
       .then(res => res.json())
-      .then((words: string[]) => {
-        setDict(new Set(words.map(w => w.toUpperCase())));
-      });
+      .then((words: string[]) =>
+        setDict(new Set(words.map(w => w.toUpperCase())))
+      );
   }, []);
 
-  // Focus input on game start
+  // Focus input when game starts
   useEffect(() => {
     if (!showHome && !showHelp) inputRef.current?.focus();
   }, [showHome, showHelp]);
@@ -120,12 +113,11 @@ export default function Page() {
     };
   }, [showHome, showHelp]);
 
-  // End of game redirect
+  // End-of-game redirect
   useEffect(() => {
     if (timeLeft > 0) return;
     if (timerRef.current) clearInterval(timerRef.current);
     const endSeed = stack.length ? stack[stack.length - 1] : seedWord;
-
     const go = () => {
       let url = `/leaderboard?endSeed=${encodeURIComponent(endSeed)}&score=${score}`;
       if (groupId && groupName) {
@@ -133,12 +125,8 @@ export default function Page() {
       }
       router.push(url);
     };
-
-    if (score > 0) {
-      handleSaveScore().finally(go);
-    } else {
-      go();
-    }
+    if (score > 0) handleSaveScore().finally(go);
+    else go();
   }, [timeLeft, score, groupId, groupName, router, stack, seedWord]);
 
   // Prompt for unique nickname
@@ -154,7 +142,7 @@ export default function Page() {
     return clean;
   };
 
-  // Create a new group
+  // Create group
   const handleCreateGroup = async () => {
     const raw = prompt('Enter a new group name:','')?.trim();
     if (!raw) return;
@@ -181,7 +169,7 @@ export default function Page() {
     startGame('group');
   };
 
-  // Join existing group
+  // Join group
   const handleJoinGroup = async () => {
     const code = prompt('Paste your invite link or enter group code:','')?.trim();
     if (!code) return;
@@ -213,8 +201,10 @@ export default function Page() {
 
   // Solo start
   const startSolo = () => startGame('daily');
+  // Group start
+  const startGroup = () => startGame('group');
 
-  // Common start
+  // Common start logic
   const startGame = async (mode: GameMode) => {
     if (!nickname) promptNickname();
     const r = await fetch('/api/seed');
@@ -271,43 +261,51 @@ export default function Page() {
   const submitWord = useCallback(() => {
     const newWord = input.trim().toUpperCase();
     if (!newWord) return;
-    if (newWord.length < MIN_LEN)         { shakeInput(); return; }
-    if ([seedWord, ...stack].includes(newWord)) { shakeInput(); return; }
-    if (!dict.has(newWord))               { shakeInput(); return; }
-    const current = stack.length ? stack[stack.length-1] : seedWord;
-    if (!isOneLetterDifferent(current, newWord)) { shakeInput(); return; }
+    if (
+      newWord.length < MIN_LEN ||
+      [seedWord, ...stack].includes(newWord) ||
+      !dict.has(newWord) ||
+      !isOneLetterDifferent(stack.length ? stack[stack.length-1] : seedWord, newWord)
+    ) {
+      shakeInput();
+      return;
+    }
 
-    setStack(s => [...s, newWord]);
+    setStack(p => [...p, newWord]);
     setScore(s => s + newWord.length);
     clearInput();
     inputRef.current?.focus();
-    if (POP_INTERVALS.includes(score+1)) burst();
-    fetch(`/api/define?word=${newWord}`)
-      .then(r=>r.json()).then(data=>console.log('Defs', data.definitions))
-      .catch(()=>{});
+    if (POP_INTERVALS.includes(score + 1)) burst();
 
+    fetch(`/api/define?word=${newWord}`)
+      .then(r => r.json())
+      .then(data => console.log('Definitions for', newWord, data.definitions))
+      .catch(() => {/* ignore */});
   }, [input, seedWord, stack, score, dict]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key==='Enter') { e.preventDefault(); submitWord(); }
+    if (e.key === 'Enter') { e.preventDefault(); submitWord(); }
   };
-
   const onVKPress = (key: string) => {
-    if (key==='ENTER') { submitWord(); return; }
-    if (key==='DEL')   { setInput(v=>v.slice(0,-1)); return; }
-    if (input.length>=MAX_LEN) return;
-    setInput(v=>(v+key).toUpperCase());
+    if (key === 'ENTER') { submitWord(); return; }
+    if (key === 'DEL')   { setInput(v => v.slice(0, -1)); return; }
+    if (input.length >= MAX_LEN) return;
+    setInput(v => (v + key).toUpperCase());
   };
 
   const handleShare = () => {
     const text = `I scored ${score} in today's Daily Challenge on Lexit!`;
     const url  = window.location.origin;
-    if (navigator.share) navigator.share({text,url}).catch(()=>navigator.clipboard.writeText(`${text} ${url}`));
+    if (navigator.share) navigator.share({ text, url })
+      .catch(() => navigator.clipboard.writeText(`${text} ${url}`));
     else navigator.clipboard.writeText(`${text} ${url}`);
   };
 
   const changeNick = () => promptNickname();
-  const backHome = () => { setShowHome(true); setStack([]); setScore(0); setInput(''); setSubmitState('idle'); };
+  const backHome  = () => {
+    setShowHome(true);
+    setStack([]); setScore(0); setInput(''); setSubmitState('idle');
+  };
 
   // Home vs Game render
   if (showHome) {
@@ -316,6 +314,7 @@ export default function Page() {
         nickname={nickname}
         onNicknameChange={changeNick}
         onStartSolo={startSolo}
+        onStartGroup={startGroup}
         onCreateGroup={handleCreateGroup}
         onJoinGroup={handleJoinGroup}
         existingGroupName={groupName}
@@ -325,22 +324,30 @@ export default function Page() {
 
   // -------- Game UI --------
   const latestSeed = stack.length ? stack[stack.length-1] : seedWord;
-  const pastWords = stack.length ? [seedWord, ...stack.slice(0,-1)] : [];
+  const pastWords  = stack.length ? [seedWord, ...stack.slice(0,-1)] : [];
 
-  const formatTime = (sec: number) => sec>=60
-    ? `${Math.floor(sec/60)}:${(sec%60).toString().padStart(2,'0')}`
-    : `${sec}`;
+  const formatTime = (sec: number) =>
+    sec >= 60
+      ? `${Math.floor(sec/60)}:${(sec%60).toString().padStart(2,'0')}`
+      : `${sec}`;
 
   const shakeInput = async () => {
     const el = inputRef.current;
     if (el) el.style.caretColor = 'transparent';
-    await inputControls.start({ x: [0,-5,5,-5,0], transition:{ duration:0.3 } });
-    setTimeout(() => { setInput(''); if (el) el.style.caretColor=''; }, 0);
+    await inputControls.start({ x:[0,-5,5,-5,0], transition:{ duration:0.3 } });
+    setTimeout(() => {
+      setInput('');
+      if (el) el.style.caretColor = '';
+    }, 0);
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
-      <HowToModal open={showHelp} onClose={()=>setShowHelp(false)} focusInput={()=>inputRef.current?.focus()} />
+      <HowToModal
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        focusInput={() => inputRef.current?.focus()}
+      />
 
       {/* Top bar */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between max-w-md mx-auto px-4">
@@ -352,7 +359,13 @@ export default function Page() {
           <button onClick={handleShare} className="h-10 px-4 rounded-xl bg-[#3BB2F6] text-white flex items-center gap-2">
             <FaShareAlt /> Share
           </button>
-          <a href="/leaderboard" className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center gap-2">
+          <a
+            href={groupId && groupName
+              ? `/leaderboard?groupId=${encodeURIComponent(groupId)}&groupName=${encodeURIComponent(groupName)}`
+              : '/leaderboard'
+            }
+            className="h-10 px-4 rounded-xl bg-[#334155] text-white flex items-center gap-2"
+          >
             <FaList /> Board
           </a>
         </div>
@@ -370,15 +383,24 @@ export default function Page() {
             placeholder="ENTER WORD"
             className="flex-1 h-14 rounded-xl border-2 border-[#334155] bg-[#F1F5F9] text-[#334155] text-xl text-center tracking-widest outline-none"
             animate={inputControls}
-            autoComplete="off" autoCorrect="off" spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
           />
           <button onClick={submitWord} className="h-14 w-14 rounded-xl bg-[#3BB2F6] flex items-center justify-center text-white text-xl">
             ↵
           </button>
         </div>
+
         {!showHelp && (
-          <motion.div key={latestSeed} variants={popVariants} initial="initial" animate="animate" exit="exit"
-            className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4">
+          <motion.div
+            key={latestSeed}
+            variants={popVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="w-full rounded-xl bg-[#334155] text-white text-2xl font-bold text-center py-3 mb-4"
+          >
             {latestSeed}
           </motion.div>
         )}
@@ -388,8 +410,14 @@ export default function Page() {
       <div className="w-full max-w-md px-4 flex-1 overflow-hidden">
         <AnimatePresence initial={false}>
           {pastWords.slice().reverse().map(w => (
-            <motion.div key={w} variants={popVariants} initial="initial" animate="animate" exit="exit"
-              className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-70">
+            <motion.div
+              key={w}
+              variants={popVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="w-full rounded-xl bg-[#10B981] text-white text-lg font-semibold text-center py-3 mb-2 opacity-70"
+            >
               {w}
             </motion.div>
           ))}
@@ -404,6 +432,7 @@ function HomeScreen({
   nickname,
   onNicknameChange,
   onStartSolo,
+  onStartGroup,
   onCreateGroup,
   onJoinGroup,
   existingGroupName,
@@ -411,6 +440,7 @@ function HomeScreen({
   nickname: string;
   onNicknameChange: () => void;
   onStartSolo: () => void;
+  onStartGroup: () => void;
   onCreateGroup: () => void;
   onJoinGroup: () => void;
   existingGroupName: string | null;
@@ -431,37 +461,66 @@ function HomeScreen({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden">
-      <motion.div initial="hidden" animate="show" variants={{ hidden:{}, show:{ transition:{staggerChildren:0.35} } }} className="w-full max-w-md px-6 space-y-6">
-        <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>Lexit</motion.h1>
-        <motion.p variants={childFall} className="text-[#334155] italic">A little goes a long way</motion.p>
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{ hidden:{}, show:{ transition:{ staggerChildren:0.35 } } }}
+        className="w-full max-w-md px-6 space-y-6"
+      >
+        <motion.h1 variants={childFall} className={`${titleFont.className} text-5xl font-extrabold text-[#334155]`}>
+          Lexit
+        </motion.h1>
+        <motion.p variants={childFall} className="text-[#334155] italic">
+          A little goes a long way
+        </motion.p>
 
-        <motion.button variants={childFall} onClick={onStartSolo} className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow">
+        <motion.button
+          variants={childFall}
+          onClick={onStartSolo}
+          className="w-full py-4 rounded-2xl bg-[#10B981] text-white text-2xl font-semibold shadow"
+        >
           Daily Challenge (Solo)
         </motion.button>
 
         {existingGroupName ? (
-          <motion.button variants={childFall} onClick={onStartSolo} className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow mt-4">
+          <motion.button
+            variants={childFall}
+            onClick={onStartGroup}
+            className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow mt-4"
+          >
             Daily Challenge (Group)
           </motion.button>
         ) : (
           <motion.div variants={childFall} className="flex flex-col space-y-2">
-            <button onClick={onCreateGroup} className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow">
+            <button
+              onClick={onCreateGroup}
+              className="w-full py-4 rounded-2xl bg-[#3BB2F6] text-white text-2xl font-semibold shadow"
+            >
               Create a Group
             </button>
-            <button onClick={onJoinGroup} className="w-full py-4 rounded-2xl bg-[#E2E8F0] text-[#334155] text-2xl font-semibold shadow">
+            <button
+              onClick={onJoinGroup}
+              className="w-full py-4 rounded-2xl bg-[#E2E8F0] text-[#334155] text-2xl font-semibold shadow"
+            >
               Join a Group
             </button>
           </motion.div>
         )}
 
-        <motion.div variants={childFall} className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1">
+        <motion.div
+          variants={childFall}
+          className="w-full flex justify-center items-center space-x-2 text-sm text-[#334155] mt-1"
+        >
           <div className="underline cursor-pointer" onClick={onNicknameChange}>
             Change Nickname {nickname ? `(@${nickname})` : ''}
           </div>
           <span>|</span>
-          <div>Leader: {currentLeader ? `${currentLeader.name} (${currentLeader.score})` : 'Loading...'}</div>
+          <div>
+            Leader: {currentLeader ? `${currentLeader.name} (${currentLeader.score})` : 'Loading...'}
+          </div>
         </motion.div>
       </motion.div>
+
       <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[#334155]/60 space-x-2">
         <span>Created By: Nuiche</span>
         <a href="/privacy" className="underline">Privacy Policy</a>
