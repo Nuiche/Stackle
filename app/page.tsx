@@ -306,18 +306,20 @@ export default function Page() {
   let text, url;
   if (groupId && groupName) {
     url = `${base}?groupId=${encodeURIComponent(groupId)}&groupName=${encodeURIComponent(groupName)}`;
-    text = `Join my Lexit group! ${url}`;
+    text = `Join my Lexit group!`;
   } else {
     url = base;
-    text = `I scored ${score} in today's Daily Challenge on Lexit! ${url}`;
+    text = `I scored ${score} in today's Daily Challenge on Lexit!`;
   }
+
   if (navigator.share) {
     navigator.share({ text, url }).catch(() => {
-      navigator.clipboard.writeText(text);
+      // Fallback to clipboard copy if share fails or is cancelled
+      navigator.clipboard.writeText(`${text} ${url}`);
       alert('Link copied to clipboard!');
     });
   } else {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(`${text} ${url}`);
     alert('Link copied to clipboard!');
   }
 };
