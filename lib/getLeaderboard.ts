@@ -44,7 +44,7 @@ function mapDocToRow(doc: QueryDocumentSnapshot): Row {
   };
 }
 
-// Daily (top 15)
+// Daily (top 15), optionally scoped to a group
 export async function getDailyLeaderboard(
   dayKey: string,
   top = 15,

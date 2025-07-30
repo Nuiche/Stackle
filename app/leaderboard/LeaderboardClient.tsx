@@ -1,3 +1,4 @@
+// app/leaderboard/LeaderboardClient.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -44,29 +45,6 @@ export default function LeaderboardClient({ groupId }: { groupId?: string }) {
     load();
   }, [groupId]);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const dk = getDayKey();
-        const [d, r, a, total] = await Promise.all([
-          getDailyLeaderboard(dk, 15),
-          getMostRecent(10),
-          getAllTime(50),
-          getTotalGames(),
-        ]);
-        setDaily(d);
-        setRecent(r);
-        setAllTime(a);
-        setTotalGames(total);
-      } catch (e) {
-        console.error('Leaderboard load error', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#F1F5F9] to-white text-[#334155]">
@@ -79,7 +57,7 @@ export default function LeaderboardClient({ groupId }: { groupId?: string }) {
     <div className="min-h-screen bg-gradient-to-b from-[#F1F5F9] to-white text-[#334155] p-4 pb-16">
       <div className="max-w-md mx-auto">
         <Section
-          title="Daily Challenge"
+          title={groupId ? 'Group Rankings' : 'Daily Challenge'}
           rows={daily}
           activeId={activeId}
           setActiveId={setActiveId}
@@ -122,7 +100,13 @@ type SectionProps = {
   disableHighlights?: boolean;
 };
 
-function Section({ title, rows, activeId, setActiveId, disableHighlights = false }: SectionProps) {
+function Section({
+  title,
+  rows,
+  activeId,
+  setActiveId,
+  disableHighlights = false,
+}: SectionProps) {
   return (
     <section className="mb-8">
       <h2 className="text-2xl font-bold mb-3">{title}</h2>
