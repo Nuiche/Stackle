@@ -3,20 +3,16 @@ import React from 'react';
 import LeaderboardClient from './LeaderboardClient';
 import LeaderboardShareBar, { LastResult } from './LeaderboardShareBar';
 
-export default function Page({
-  searchParams,
-}: {
-  searchParams: {
-    endSeed?: string;
-    score?: string;
-    groupId?: string;
-    groupName?: string;
-  };
-}) {
-  const { endSeed, score, groupId, groupName } = searchParams;
+export default function Page(props: { searchParams: any }) {
+  const { searchParams } = props;
+  const endSeed = searchParams.endSeed as string | undefined;
+  const scoreStr = searchParams.score as string | undefined;
+  const groupId = searchParams.groupId as string | undefined;
+  const groupName = searchParams.groupName as string | undefined;
+
   const lastResult: LastResult =
-    endSeed && score
-      ? { endSeed, score: Number(score) }
+    endSeed && scoreStr
+      ? { endSeed, score: Number(scoreStr) }
       : null;
 
   return (
