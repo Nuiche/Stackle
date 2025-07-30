@@ -1,5 +1,6 @@
 // app/page.tsx
 'use client';
+export const dynamic = 'force-dynamic';
 
 import React, {
   useState,
@@ -48,8 +49,8 @@ export default function Page() {
 
   // Persisted state
   const [nickname, setNickname]    = useState<string>(() => localStorage.getItem('lexit_nick') || '');
-  const [groupId, setGroupId]      = useState<string|null>(() => localStorage.getItem('groupId'));
-  const [groupName, setGroupName]  = useState<string|null>(() => {
+  const [groupId, setGroupId]      = useState<string | null>(() => localStorage.getItem('groupId'));
+  const [groupName, setGroupName]  = useState<string | null>(() => {
     const g = localStorage.getItem('groupName');
     return g ? decodeURIComponent(g) : null;
   });
@@ -62,7 +63,7 @@ export default function Page() {
   // Timer state
   const TIME_LIMIT = 90;
   const [timeLeft, setTimeLeft] = useState<number>(TIME_LIMIT);
-  const timerRef = useRef<number|null>(null);
+  const timerRef = useRef<number | null>(null);
 
   // Game state
   const [seedWord, setSeedWord]   = useState('TREAT');
@@ -91,9 +92,9 @@ export default function Page() {
   useEffect(() => {
     fetch('/api/dictionary')
       .then(res => res.json())
-      .then((words: string[]) =>
-        setDict(new Set(words.map(w => w.toUpperCase())))
-      );
+      .then((words: string[]) => {
+        setDict(new Set(words.map(w => w.toUpperCase())));
+      });
   }, []);
 
   // Focus input when game starts
@@ -142,7 +143,7 @@ export default function Page() {
     return clean;
   };
 
-  // Create group
+  // Create a new group
   const handleCreateGroup = async () => {
     const raw = prompt('Enter a new group name:','')?.trim();
     if (!raw) return;
@@ -169,7 +170,7 @@ export default function Page() {
     startGame('group');
   };
 
-  // Join group
+  // Join existing group
   const handleJoinGroup = async () => {
     const code = prompt('Paste your invite link or enter group code:','')?.trim();
     if (!code) return;
@@ -265,7 +266,7 @@ export default function Page() {
       newWord.length < MIN_LEN ||
       [seedWord, ...stack].includes(newWord) ||
       !dict.has(newWord) ||
-      !isOneLetterDifferent(stack.length ? stack[stack.length-1] : seedWord, newWord)
+      !isOneLetterDifferent(stack.length ? stack[stack.length-1] : seedWord, newWord)  
     ) {
       shakeInput();
       return;
@@ -287,8 +288,8 @@ export default function Page() {
     if (e.key === 'Enter') { e.preventDefault(); submitWord(); }
   };
   const onVKPress = (key: string) => {
-    if (key === 'ENTER') { submitWord(); return; }
-    if (key === 'DEL')   { setInput(v => v.slice(0, -1)); return; }
+    if (key === 'ENTER')      { submitWord(); return; }
+    if (key === 'DEL')        { setInput(v => v.slice(0,-1)); return; }
     if (input.length >= MAX_LEN) return;
     setInput(v => (v + key).toUpperCase());
   };
@@ -343,11 +344,7 @@ export default function Page() {
 
   return (
     <div className="min-h-screen flex flex-col items-center pb-40 relative overflow-hidden overscroll-none">
-      <HowToModal
-        open={showHelp}
-        onClose={() => setShowHelp(false)}
-        focusInput={() => inputRef.current?.focus()}
-      />
+      <HowToModal open={showHelp} onClose={()=>setShowHelp(false)} focusInput={()=>inputRef.current?.focus()} />
 
       {/* Top bar */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between max-w-md mx-auto px-4">
@@ -451,8 +448,8 @@ function HomeScreen({
     (async () => {
       try {
         const dk = buildDayKey();
-        const [top] = await getDailyLeaderboard(dk, 1);
-        if (top) setCurrentLeader({ name: top.name, score: top.score });
+        const [leader] = await getDailyLeaderboard(dk, 1);
+        if (leader) setCurrentLeader({ name: leader.name, score: leader.score });
       } catch (e) {
         console.error('Error loading current leader', e);
       }
