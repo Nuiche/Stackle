@@ -1,66 +1,32 @@
-'use client';
-
-import React, { Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+// app/leaderboard/page.tsx
+import React from 'react';
 import LeaderboardClient from './LeaderboardClient';
+import LeaderboardShareBar, { LastResult } from './LeaderboardShareBar';
 
-// Subcomponent wrapped in Suspense for useSearchParams
-function LeaderboardShareBar() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const endSeed = searchParams.get('endSeed');
-  const score = searchParams.get('score');
-  const lastResult = endSeed && score ? { endSeed, score: parseInt(score, 10) } : null;
-
-  const handleShareRank = () => {
-    if (!lastResult) {
-      alert('No score to share yet.');
-      return;
-    }
-    const { endSeed, score } = lastResult;
-    const text = `My daily Lexit score: ${endSeed} -> ${score}`;
-    navigator.clipboard.writeText(text)
-      .then(() => alert('Copied! Please paste to share.'))
-      .catch(() => alert('Could not copy to clipboard.'));
+export default function Page({
+  searchParams,
+}: {
+  searchParams: {
+    endSeed?: string;
+    score?: string;
+    groupId?: string;
+    groupName?: string;
   };
-
-  return (
-    <div className="absolute top-4 inset-x-0 flex items-center justify-between px-4">
-      <button
-        onClick={() => router.push('/')}
-        className="text-[#334155] underline"
-      >
-        ← Back
-      </button>
-      <button
-        onClick={handleShareRank}
-        className="px-3 py-1 bg-[#3BB2F6] text-white rounded"
-      >
-        Share Score
-      </button>
-    </div>
-  );
-}
-
-export default function Page() {
-  const searchParams = useSearchParams();
-  const groupId = searchParams.get('groupId') || undefined;
-  const groupName = searchParams.get('groupName') || undefined;
+}) {
+  const { endSeed, score, groupId, groupName } = searchParams;
+  const lastResult: LastResult =
+    endSeed && score
+      ? { endSeed, score: Number(score) }
+      : null;
 
   return (
     <div className="relative min-h-screen flex flex-col">
-      {/* Back & Share buttons in Suspense boundary */}
-      <Suspense>
-        <LeaderboardShareBar />
-      </Suspense>
+      <LeaderboardShareBar lastResult={lastResult} />
 
-      {/* Title pushed down */}
       <h1 className="mt-16 text-3xl font-bold text-center mb-6">
-        {groupId ? `Group: ${decodeURIComponent(groupName!)}` : 'Global Rankings'}
+        {groupId ? `Group: ${groupName}` : 'Global Rankings'}
       </h1>
 
-      {/* Leaderboard content */}
       <LeaderboardClient groupId={groupId} />
     </div>
   );
